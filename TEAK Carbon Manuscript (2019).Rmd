@@ -1,0 +1,494 @@
+---
+title: "TEAK Carbon Manuscript (2019)"
+author: "Marissa Goodwin"
+date: "October 15, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(data.table)
+library(car)
+library(ggsci)
+```
+
+###Carbon Stocks for All Plots and Years
+```{r}
+setwd("C:/Users/mjgoodwin/Desktop/TEAK Carbon Manuscript Code")
+
+bm <- read.csv("treatmentaverages.csv")
+bm$year <- as.factor(bm$year)
+
+sd <- data.table(bm)[,list(carbon = sum(carbon), std = sum(std), order = "f"), by = c("Treatment", "year")]
+
+treatments <- c('bc' = "Burn/Understory Thin", 'bn' = "Burn Only", 'bs' = 'Burn/Overstory Thin', 'uc'= "Understory Thin", 'un'="Control", 'us'="Overstory Thin")
+
+
+plot <- ggplot(data = bm, aes(x=year, y=carbon, fill=order)) + geom_bar(colour="black", position = position_stack(reverse = TRUE), stat = "identity")+
+  geom_errorbar(data=sd, aes(ymax= carbon + std, ymin = carbon),position="dodge", colour="black", width=.2)+
+  ylab(bquote('Carbon (Mg '*~ha^-1*')')) + 
+  scale_x_discrete(labels=c('2002' ="1999", '2004'="2002", '2011'="2011", '2017'="2017", '2018'="2018"))+
+  scale_fill_manual(labels = c("Live Trees", "Snags", "CWD", "FWD", "Shrubs", "Litter"), values=c("#1b7837", "#8c510a", "#67a9cf", "#d73027", "#7fbf7b", "#fee08b"))+
+  facet_wrap(~Treatment, labeller = as_labeller(treatments))
+
+
+plot_aves <- plot + theme_bw() + theme(legend.title=element_blank()) + theme(axis.title.x=element_blank(),axis.text.x=element_text(angle=45, hjust=1)) + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_blank())
+```
+
+```{r, echo=FALSE,fig.height=7, fig.width=8}
+plot(plot_aves)
+```
+
+```{r}
+p <- ggplot(data = bm, aes(x=year, y=proportion, fill=order)) + geom_bar(colour="black", position = position_stack(reverse = TRUE), stat = "identity")+
+  ylab(bquote('Proportion Carbon (Mg '*~ha^-1*')')) + 
+  scale_x_discrete(labels=c('2002' ="1999", '2004'="2002", '2011'="2011", '2017'="2017", '2018'="2018"))+
+  scale_fill_manual(labels = c("Live Trees", "Snags", "CWD", "FWD", "Shrubs", "Litter"), values=c("#1b7837", "#8c510a", "#67a9cf", "#d73027", "#7fbf7b", "#fee08b"))+
+  facet_wrap(~Treatment, labeller = as_labeller(treatments))
+
+
+plot_prop <- p + theme_bw() + theme(legend.title=element_blank()) + theme(axis.title.x=element_blank(),axis.text.x=element_text(angle=45, hjust=1)) + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_blank())
+```
+
+```{r echo=FALSE, fig.height=7, fig.width=8}
+plot(plot_prop)
+```
+
+#Pyramid Graph of Carbon Stocks
+```{r}
+bm$Fuel_Class <- NA
+bm[which(bm$fuel_type == "CWD"|bm$fuel_type == "FWD" |bm$fuel_type == "Litter"|bm$fuel_type == "Shrub"), 'Fuel_Class'] <- "Surface Fuel"
+
+bm[which(bm$fuel_type == "Live"), 'Fuel_Class'] <- "Live Tree"
+bm[which(bm$fuel_type == "Dead"), 'Fuel_Class'] <- "Snag"
+
+prop <- aggregate(proportion ~ Treatment + year + Fuel_Class, bm, sum)
+
+prop$Fuel_Class <- as.character(prop$Fuel_Class)
+prop$proportion <- prop$proportion * 100
+
+treatments <- c('bc' = "Burn/Understory Thin", 'bn' = "Burn Only", 'bs' = 'Burn/Overstory Thin', 'uc'= "Understory Thin", 'un'="Control", 'us'="Overstory Thin")
+
+plot <- ggplot(prop, aes(x=year)) +
+  geom_bar(data=prop[prop$Fuel_Class=="Live Tree",], aes(y=proportion, fill=Fuel_Class), colour="black", stat="identity", width=0.7) +
+  geom_bar(data=prop[prop$Fuel_Class=="Snag"|prop$Fuel_Class == "Surface Fuel",], aes(y=-proportion, fill=Fuel_Class), colour="black", position = position_stack(reverse = TRUE), stat="identity", width=0.7) +
+  geom_hline(yintercept=0, colour="black", lwd=1) +
+  scale_y_continuous(breaks=seq(-100,100,25), labels=c(100,75,50,25,0,25,50,75,100)) +
+  labs(y="Proportion of Carbon Stocks (%)", x="Year", fill="") +
+  coord_flip(ylim=c(-100,100)) +
+  scale_fill_manual(labels = c("Live Tree", "Dead Tree", "Surface Fuel"), values=c( "#01665e", "#bf812d", "#dfc27d"))+
+  facet_wrap(~Treatment, labeller = as_labeller(treatments))+
+  theme(strip.background = element_blank(),strip.text.x = element_blank())
+
+carb_pyramid <- plot + theme_bw() + theme(panel.grid.major = element_blank(),
+                                              panel.grid.minor = element_blank(), axis.line = element_blank())+
+  theme(legend.position="bottom")
+```
+
+```{r echo=FALSE}
+plot(carb_pyramid)
+```
+###Surface Fuels by Treatment and Year
+```{r}
+temp <- read.csv("fuels.csv")
+
+temp$year <- as.factor(temp$year)
+
+sd <- data.table(temp)[,list(carbon = sum(carbon), std = sum(std), order = "e"), by = c("Treatment", "year")]
+
+Treatment_Title <- c('bc' = "Burn/Understory Thin", 'bs'="Burn/Overstory Thin", 'bn'="Burn Only", 'uc' = "Understory Thin", 'un'="Control", 'us'="Overstory Thin")
+
+plot <- ggplot (data = temp, aes(x=year, y=carbon, fill=order)) + geom_bar(colour="black", position = position_stack(reverse = TRUE), stat = "identity")+
+  geom_errorbar(data=sd, aes(ymax= carbon + std, ymin = carbon),position="dodge", colour="black", width=.2)+
+  scale_fill_manual(labels = c("1000 hr", "100 hr", "10 hr", "1 hr", "Litter"), values=c("#67a9cf", "#8c510a", "#7fbf7b", "#1b7837","#fee08b"), name= "Fuel Type")+
+  scale_x_discrete(labels=c('2002' ="1999", '2004'="2002", '2011'="2011", '2017'="2017", '2018'="2018"))+
+   ylab(bquote('Carbon (Mg '*~ha^-1*')')) + 
+  facet_wrap(~Treatment, labeller = as_labeller(Treatment_Title))
+
+
+plot_fuel <- plot + theme_bw() + theme(axis.title.x=element_blank(),axis.text.x=element_text(angle=45, hjust=1)) + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_blank())      
+```
+
+```{r, echo=FALSE}
+plot(plot_fuel)
+```
+
+###Visualizing Carbon Stability from 2004 to 2017
+```{r}
+ave <- read.csv("treecarbon.csv")
+
+ave <- ave[which(ave$year == 2004 | ave$year == 2011 | ave$year == 2017),]
+
+live <- ave[which(ave$Live_Dead == "Live"),]
+
+live$Treatment <- substring(live$Plot, 1, 2)
+
+ggplot(live, aes(x=year, y=carbon_mg_ha)) + geom_point(colour="black", size = 2.5)+
+  geom_smooth(method = "lm", color="black") 
+
+ggplot(live, aes(x=year, y=carbon_mg_ha, fill=Treatment)) + geom_point(colour="black", size = 2.5)+
+  geom_smooth(method = "lm", color="black") 
+
+hist(live$carbon_mg_ha, breaks=10, col="gray")
+shapiro.test(live$carbon_mg_ha)
+
+live.lm = lm(carbon_mg_ha ~ year, data=live)
+
+plot(live.lm)
+
+live$resid <- live.lm$residuals
+
+resid_sd <- sd(live$resid)
+
+
+ave_17 <- aggregate(carbon_mg_ha ~ Plot, live, mean)
+
+
+ave_17$Stability <- ave_17$carbon_mg_ha/resid_sd
+
+ave_17$Treatment <- substring(ave_17$Plot, 1, 2)
+
+ave_17$order <- NA
+
+ave_17[which(ave_17$Treatment == "un"), 'order'] <- 1
+ave_17[which(ave_17$Treatment == "bn"), 'order'] <- 2
+ave_17[which(ave_17$Treatment == "uc"), 'order'] <- 3
+ave_17[which(ave_17$Treatment == "bc"), 'order'] <- 4
+ave_17[which(ave_17$Treatment == "us"), 'order'] <- 5
+ave_17[which(ave_17$Treatment == "bs"), 'order'] <- 6
+
+
+stab <- ggplot(ave_17, aes(x=order, y=Stability)) + geom_point(colour="black", size = 2.5, aes(shape=Treatment))+
+  geom_smooth(method = "lm", color="black") +
+  xlab("Highest to Lowest Basal Area")+
+  ylab("Live Carbon Stability")
+  
+```
+
+
+```{r, echo=FALSE}
+plot(stab)
+```
+
+##Here I use a Linear Regression for Each Treatment to calculate a Treatment Specific value for temporal variation
+```{r}
+#BC
+bc <- live[which(live$Treatment == 'bc'),]
+
+shapiro.test(bc$carbon_mg_ha)
+bc.lm <- lm(carbon_mg_ha ~ year, data=bc)
+
+bc_rsd <- sd(bc.lm$residuals)
+
+#BN
+bn <- live[which(live$Treatment == 'bn'),]
+
+shapiro.test(bn$carbon_mg_ha)
+bn.lm <- lm(carbon_mg_ha ~ year, data=bn)
+
+bn_rsd <- sd(bn.lm$residuals)
+
+#BS
+bs <- live[which(live$Treatment == 'bs'),]
+
+shapiro.test(bs$carbon_mg_ha)
+bs.lm <- lm(carbon_mg_ha ~ year, data=bs)
+
+bs_rsd <- sd(bs.lm$residuals)
+
+#UC
+uc <- live[which(live$Treatment == 'uc'),]
+
+shapiro.test(uc$carbon_mg_ha)
+uc.lm <- lm(carbon_mg_ha ~ year, data=uc)
+
+uc_rsd <- sd(uc.lm$residuals)
+
+#UN
+un <- live[which(live$Treatment == 'un'),]
+
+shapiro.test(un$carbon_mg_ha)
+un.lm <- lm(carbon_mg_ha ~ year, data=un)
+
+un_rsd <- sd(un.lm$residuals)
+
+#US
+us <- live[which(live$Treatment == 'us'),]
+
+shapiro.test(us$carbon_mg_ha)
+us.lm <- lm(carbon_mg_ha ~ year, data=us)
+
+us_rsd <- sd(us.lm$residuals)
+
+#Assign SD of Residuals to each Treatment
+ave_17$rsd <- NA
+ave_17[which(ave_17$Treatment == "bc"), 'rsd'] <- bc_rsd
+ave_17[which(ave_17$Treatment == "bn"), 'rsd'] <- bn_rsd
+ave_17[which(ave_17$Treatment == "bs"), 'rsd'] <- bs_rsd
+ave_17[which(ave_17$Treatment == "uc"), 'rsd'] <- uc_rsd
+ave_17[which(ave_17$Treatment == "un"), 'rsd'] <- un_rsd
+ave_17[which(ave_17$Treatment == "us"), 'rsd'] <- us_rsd
+
+
+ave_17$Stability_Treatment <- ave_17$carbon_mg_ha/ave_17$rsd
+
+stab <- ggplot(ave_17, aes(x=order, y=Stability_Treatment)) + geom_point(colour="black", size = 2.5, aes(shape=Treatment))+ scale_color_brewer(palette="Dark2") +
+  xlab("Highest to Lowest Basal Area")+
+  ylab("Live Carbon Stability")
+  
+```
+
+```{r, echo=FALSE}
+plot(stab)
+```
+
+
+###Live Carbon Stability using Large Tree Data from 2008, 2011 and 2017
+```{r}
+live <- read.csv("largetree_livecarbave.csv")
+
+live$carbon_mg_ha <- (live$carbon_mg_ha *12)/4
+
+live$year <- as.factor(live$year)
+
+#BC
+bc <- live[which(live$Treatment == 'bc'),]
+shapiro.test(bc$carbon_mg_ha)
+
+ggplot(bc, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+bc.lm <- lm(carbon_mg_ha ~ year, data=bc)
+bc_rsd <- sd(bc.lm$residuals)
+
+#BN
+bn <- live[which(live$Treatment == 'bn'),]
+shapiro.test(bn$carbon_mg_ha)
+
+ggplot(bn, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+bn.lm <- lm(carbon_mg_ha ~ year, data=bn)
+bn_rsd <- sd(bn.lm$residuals)
+
+
+#BS
+bs <- live[which(live$Treatment == 'bs'),]
+shapiro.test(bs$carbon_mg_ha)
+
+ggplot(bs, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+bs.lm <- lm(carbon_mg_ha ~ year, data=bs)
+bs_rsd <- sd(bs.lm$residuals)
+
+#UC
+uc <- live[which(live$Treatment == 'uc'),]
+shapiro.test(uc$carbon_mg_ha)
+
+ggplot(uc, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+uc.lm <- lm(carbon_mg_ha ~ year, data=uc)
+uc_rsd <- sd(uc.lm$residuals)
+
+#US
+us <- live[which(live$Treatment == 'us'),]
+shapiro.test(us$carbon_mg_ha)
+
+ggplot(us, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+us.lm <- lm(carbon_mg_ha ~ year, data=us)
+
+us_rsd <- sd(us.lm$residuals)
+
+#UN
+un <- live[which(live$Treatment == 'un'),]
+shapiro.test(un$carbon_mg_ha)
+
+ggplot(un, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+un.lm <- lm(carbon_mg_ha ~ year, data=un)
+un_rsd <- sd(un.lm$residuals)
+
+ave_17 <- live[which(live$year == 2017),]
+
+ave_17$rsd <- NA
+ave_17[which(ave_17$Treatment == "bc"), 'rsd'] <- bc_rsd
+ave_17[which(ave_17$Treatment == "bn"), 'rsd'] <- bn_rsd
+ave_17[which(ave_17$Treatment == "bs"), 'rsd'] <- bs_rsd
+ave_17[which(ave_17$Treatment == "uc"), 'rsd'] <- uc_rsd
+ave_17[which(ave_17$Treatment == "un"), 'rsd'] <- un_rsd
+ave_17[which(ave_17$Treatment == "us"), 'rsd'] <- us_rsd
+
+
+ave_17$Stability_Treatment <- ave_17$carbon_mg_ha/ave_17$rsd
+
+ave_17$order <- NA
+
+ave_17[which(ave_17$Treatment == "un"), 'order'] <- 1
+ave_17[which(ave_17$Treatment == "bn"), 'order'] <- 2
+ave_17[which(ave_17$Treatment == "uc"), 'order'] <- 3
+ave_17[which(ave_17$Treatment == "bc"), 'order'] <- 4
+ave_17[which(ave_17$Treatment == "us"), 'order'] <- 5
+ave_17[which(ave_17$Treatment == "bs"), 'order'] <- 6
+
+ave_17$order <- as.factor(ave_17$order)
+
+addline_format <- function(x,...){
+    gsub('\\s','\n',x)
+}
+
+stab <- ggplot(ave_17, aes(x=order, y=Stability_Treatment)) + geom_point(aes(fill=order),size = 3, shape=24, colour="black") + scale_fill_brewer(palette="Dark2")+
+ scale_x_discrete(labels=addline_format(c("Control", "Burn Only","Understory Thin","Burn Understory Thin", "Overstory Thin", "Burn Overstory Thin")))+
+   ylab("Large Tree Carbon Stability") 
+
+stab <- stab + theme_bw()+
+    theme(axis.title.x=element_blank())+ theme(legend.position = "none")
+  
+```
+
+
+###2008 Large Tree Live Carbon and Temporal Standard Deviation
+```{r}
+plot <- read.csv("tempsd_08.csv")
+
+tempsd <- ggplot(plot, aes(x=Carb_08, y=sd)) + geom_point(size = 2.5, aes(shape=Treatment, col=Treatment))+
+  geom_smooth(method = "lm", color="black") +
+  xlab("2008 Large Tree Live Carbon (Mg/ha)")+
+  ylab("Temporal Standard Deviation")
+
+summary(lm(sd ~ Carb_08, data=plot))
+
+plot(tempsd)
+```
+
+
+###Loss of Ecosystem Productivity and Increase in Fuel Load
+```{r}
+change <- read.csv("change.csv")
+
+treatments <- c('4' = "BC", '2' = "BN", '6' = 'BS', '3'= "UC", '1'="UN", '5'="US")
+
+
+plot <- ggplot(change, aes(x= position, y = Diff, fill = fuel_type)) + geom_bar(position="stack", stat="identity", color="black") +
+  geom_hline(yintercept = 0)+
+  scale_fill_manual(labels = c("CWD", "Snags", "Live Trees"), values=c("#cc4c02", "#253494", "#00441b"))+
+  facet_grid(~order, labeller = as_labeller(treatments))+
+  ylab(bquote('Carbon (Mg '*~ha^-1*')')) 
+ 
+
+cc <- plot + theme_bw() + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_blank()) + theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank()) + theme(legend.title=element_blank())
+
+```
+
+```{r, echo=FALSE}
+plot(cc)
+```
+
+###Using Theissan Polygons as a Predictor of Mortality
+```{r}
+ddd <- read.csv("ddd.csv")
+
+ddd$Size <- NA
+ddd[which(ddd$DBH_11 < 75 | ddd$DBH_11 > 25), "Size"] <- "Medium"
+ddd[which(ddd$DBH_11 > 75), "Size"] <- "Large"
+ddd[which(ddd$DBH_11 < 25), "Size"] <- "Small"
+
+ddd$Area <- as.numeric(ddd$Area)
+ddd$Treatment <- as.factor(ddd$Treatment)
+
+#Model with Voronoi Area as a Predictor
+mort.dens <- glm(DDD ~ Area, data=ddd, family=binomial)
+summary(mort.dens)
+modelChi <- mort.dens$null.deviance - mort.dens$deviance
+chidf <- mort.dens$df.null - mort.dens$df.residual
+chisq.prob <- 1-pchisq(modelChi, chidf)
+chisq.prob
+exp(confint(mort.dens))
+#Model with Area and Treatment as Predictors
+mort.dens.tr <- glm(DDD ~ Area+Treatment, data=ddd, family=binomial)
+summary(mort.dens.tr)
+
+#Comparing the two models
+anova(mort.dens, mort.dens.tr)
+model.chi <- mort.dens$deviance - mort.dens.tr$deviance
+chidf <- mort.dens$df.residual - mort.dens.tr$df.residual
+chisq.prob <- 1 - pchisq(model.chi, chidf)
+model.chi; chidf; chisq.prob
+
+
+#Testing Assumptions of the Regression
+#Multicollinearity
+vif(mort.dens.tr)
+
+#Linearity of the logit
+ddd$logArea <- log(ddd$Area)*ddd$Area
+
+testLin <- glm(DDD ~ Area + Treatment + logArea,  data=ddd, family=binomial())
+summary(testLin)
+
+#Plotting Logistic Regression
+#ddd <- ddd[na.omit(ddd$Area),]
+#newdat <- data.frame(Area = seq(min(ddd$Area),max(ddd$Area),len=100))
+#newdat$DDD = predict(mort.dens, newdata=newdat, type="response")
+#plot(DDD~Area, data=ddd, col="red")
+#lines(DDD ~ Area, newdat, col="green4", lwd=2)
+
+#Plotting the Regression in ggPlot
+ddd$SDD <- NA
+ddd[which(ddd$DDD == "1"), "SDD"] <- 0
+ddd[which(ddd$DDD == "0"), "SDD"] <- 1
+
+
+ggplot(ddd, aes(x=Area, y=SDD)) + geom_point() + stat_smooth(method="glm", method.args=list(family="binomial"), se=FALSE)+ylab("Probability of Survival")+xlab("Voronoi Polygon Area")
+  
+
+ggplot(ddd, aes(x=Area, y=SDD)) + geom_point() + stat_smooth(method="glm", method.args=list(family="binomial"), se=FALSE)+facet_wrap(~Treatment_Title)+ylab("Probability of Survival")+xlab("Voronoi Polygon Area")
+
+
+#Plotting Both on the Same Plot
+ddd$SDD <- NA
+ddd[which(ddd$DDD == "1"), "SDD"] <- 0
+ddd[which(ddd$DDD == "0"), "SDD"] <- 1
+ddd$sizeclass <- as.factor(ddd$sizeclass)
+
+treatments <- c('bc' = "Burn/Understory Thin", 'bn' = "Burn Only", 'bs' = 'Burn/Overstory Thin', 'uc'= "Understory Thin", 'un'="Control", 'us'="Overstory Thin")
+
+p <-ggplot(ddd, aes(x=Area, y=SDD, colour=Size, group=Size)) + stat_smooth(method="glm", method.args=list(family="binomial"), se=FALSE)+ 
+  facet_wrap(~Treatment, labeller = as_labeller(treatments),scales="free_x")+
+  ylab("Probability of Surviving Drought") +
+  xlab("Growing Space (meters)")+
+  scale_color_uchicago(labels = c("DBH > 75 cm", "25 cm  < DBH < 75 cm", "DBH < 25 cm"))
+  
+  
+size_log <- p + theme_bw() + theme(legend.title=element_blank()) + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_blank())+
+  theme(legend.position="bottom", legend.direction="horizontal")
+
+size_log
+
+#Now let's look at the logistic regression model that includes tree size
+mort.dens.tr.sz <-  glm(DDD ~ Area+Treatment+Size, data=ddd, family=binomial)
+summary(mort.dens.tr.sz) ##Using Size (Large vs Small) is significant, but using DBH is not a significant predictor
+
+#Comparing the two models
+anova(mort.dens.tr, mort.dens.tr.sz)
+model.chi <- mort.dens.tr$deviance - mort.dens.tr.sz$deviance
+chidf <- mort.dens.tr$df.residual - mort.dens.tr.sz$df.residual
+chisq.prob <- 1 - pchisq(model.chi, chidf)
+model.chi; chidf; chisq.prob
+
+
+#Testing Assumptions of the Regression
+#Multicollinearity
+vif(mort.dens.tr.sz)
+
+#Linearity of the logit
+ddd$logArea <- log(ddd$Area)*ddd$Area
+
+testLin <- glm(DDD ~ Area + Treatment + logArea,  data=ddd, family=binomial())
+summary(testLin)
+```

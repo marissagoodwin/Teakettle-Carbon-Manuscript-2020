@@ -1,0 +1,461 @@
+---
+title: "TEAK Carbon Statistical Analysis"
+author: "Marissa Goodwin"
+date: "December 11, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###Set Working Directory and Load Library
+```{r}
+setwd("C:/Users/mjgoodwin/Desktop/TEAK Carbon Manuscript Code")
+
+library("nlme")
+
+library("multcomp")
+
+library(multcompView)
+
+library(rcompanion)
+
+library(ggplot2)
+
+library(lsmeans)
+
+library(lme4)
+
+library(PMCMR)
+
+library(car)
+
+library(FSA)
+
+```
+
+
+###Repeated Measures ANOVA for Carbon Stocks
+```{r pressure, echo=FALSE}
+carb <- read.csv("plotaverages.csv")
+carb$year <- as.factor(carb$year)
+
+live <- carb[which(carb$fuel_type == "Live"),]
+snag <- carb[which(carb$fuel_type == "Dead"),]
+cwd <- carb[which(carb$fuel_type == "CWD"),]
+fwd <- carb[which(carb$fuel_type == "FWD"),]
+lit <- carb[which(carb$fuel_type == "Litter"),]
+```
+
+##Live Trees
+```{r}
+#Checking Assumptions of a Repeated Measures ANOVA
+by(live$carbon, live$year, shapiro.test)
+#Results show that each year meets the normality assumption
+
+#Check for outliers
+boxplot(carbon ~ year, data=live, main="Live Carbon Outliers by Year")
+#Results show no outliers for each year
+
+#Check Homogeneity of Variance
+bartlett.test(carbon ~ year, live)
+#Results indicate failure to reject null hypothesis that variance is the same for all groups
+
+#Repeated Measures ANOVA on Live Carbon by Treatment across Years
+live_lme <- lme(carbon ~ Treatment * year, random= ~ year|Plot, data=live, method="ML", control=list(opt="optim"))
+#summary(live_lme)
+anova(live_lme)
+posthoc_live <- glht(live_lme, linfct=mcp(Treatment = "Tukey"))
+summary(posthoc_live)
+cld(posthoc_live, alpha=0.05, Letters=letters)
+
+#Post Hoc Test Looking at Treatment Differences by Year
+posthoc_live_by_year <- glht(live_lme, lsm(pairwise ~ Treatment|year))
+summary(posthoc_live_by_year)
+```
+
+
+##Dead Trees
+```{r}
+#Checking Assumptions of a Repeated Measures ANOVA
+by(snag$carbon, snag$year, shapiro.test)
+#Results show that each year meets the normality assumption
+
+#Check for outliers
+boxplot(carbon ~ year, data=snag, main="Snag Carbon Outliers by Year")
+#Results show outliers
+
+#Check Homogeneity of Variance
+bartlett.test(carbon ~ year, snag)
+#Results indicate to reject null hypothesis that variance is the same for all groups
+
+#Transform Data to meet Assumptions
+snag$transcarb <- log(snag$carbon)
+
+#Checking Assumptions of Transfromed Data
+by(snag$transcarb, snag$year, shapiro.test)
+#Results show that each year meets the normality assumption
+
+#Check for outliers
+boxplot(transcarb ~ year, data=snag, main="Snag Carbon Outliers by Year")
+#Results show no significant outliers
+
+#Check Homogeneity of Variance
+bartlett.test(transcarb ~ year, snag)
+#Results indicate failure to reject null hypothesis that variance is the same for all groups
+
+#Repeated Measures ANOVA on Snag Carbon by Treatment across Years
+snag_lme <- lme(transcarb ~ Treatment * year, random= ~ year|Plot, data=snag, method="ML", control=list(opt="optim"))
+#summary(snag_lme)
+anova(snag_lme)
+posthoc_snag <- glht(snag_lme, linfct=mcp(Treatment = "Tukey"))
+summary(posthoc_snag)
+cld(posthoc_snag, alpha=0.05, Letters=letters)
+
+#Post Hoc Test Looking at Treatment Differences by Year
+posthoc_snag_by_year <- glht(snag_lme, lsm(pairwise ~ Treatment|year))
+summary(posthoc_snag_by_year)
+```
+
+
+##CWD
+```{r}
+#Checking Assumptions of a Repeated Measures ANOVA
+by(cwd$carbon, cwd$year, shapiro.test)
+#Results show that not all years meet normality assumption
+
+#Check for outliers
+boxplot(carbon ~ year, data=cwd, main="CWD Carbon Outliers by Year")
+#Results show outliers
+
+#Check Homogeneity of Variance
+bartlett.test(carbon ~ year, cwd)
+#Results indicate rejection of null hypothesis that variance is the same for all groups
+
+#Transform Data to meet Assumptions
+cwd$transcarb <- log10(cwd$carbon)
+
+#Checking Assumptions of Transfromed Data
+by(cwd$transcarb, cwd$year, shapiro.test)
+#Results show that each year meets the normality assumption
+
+#Check for outliers
+boxplot(transcarb ~ year, data=cwd, main="CWD Carbon Outliers by Year")
+#Results show no significant outliers
+
+#Check Homogeneity of Variance
+bartlett.test(transcarb ~ year, cwd)
+#Results indicate failure to reject null hypothesis that variance is the same for all groups
+
+#Repeated Measures ANOVA on Cwd Carbon by Treatment across Years
+cwd_lme <- lme(transcarb ~ Treatment * year, random= ~ year|Plot, data=cwd, method="ML", control=list(opt="optim"))
+#summary(cwd_lme)
+anova(cwd_lme)
+posthoc_cwd <- glht(cwd_lme, linfct=mcp(Treatment = "Tukey"))
+summary(posthoc_cwd)
+cld(posthoc_cwd, alpha=0.05, Letters=letters)
+
+#Post Hoc Test Looking at Treatment Differences by Year
+posthoc_cwd_by_year <- glht(cwd_lme, lsm(pairwise ~ Treatment|year))
+summary(posthoc_cwd_by_year)
+```
+
+##FWD
+```{r}
+#Checking Assumptions of a Repeated Measures ANOVA
+by(fwd$carbon, fwd$year, shapiro.test)
+#Normality Assumption Met
+
+#Check for outliers
+boxplot(carbon ~ year, data=fwd, main="FWD Carbon Outliers by Year")
+#No Outliers
+
+#Check Homogeneity of Variance
+bartlett.test(carbon ~ year, fwd)
+#Results indicate rejection of null hypothesis that variance is the same for all groups
+
+#Transform Data to meet Assumptions
+fwd$transcarb <- log10(fwd$carbon)
+
+#Checking Assumptions of Transfromed Data
+by(fwd$transcarb, fwd$year, shapiro.test)
+#Results show that each year meets the normality assumption
+
+#Check for outliers
+boxplot(transcarb ~ year, data=fwd, main="FWD Carbon Outliers by Year")
+#Results show no significant outliers
+
+#Check Homogeneity of Variance
+bartlett.test(transcarb ~ year, fwd)
+#Results indicate failure to reject null hypothesis that variance is the same in all groups
+
+#Repeated Measures ANOVA on Fwd Carbon by Treatment across Years
+fwd_lme <- lme(transcarb ~ Treatment * year, random= ~ year|Plot, data=fwd, method="ML", control=list(opt="optim"))
+#summary(fwd_lme)
+anova(fwd_lme)
+posthoc_fwd <- glht(fwd_lme, linfct=mcp(Treatment = "Tukey"))
+summary(posthoc_fwd)
+cld(posthoc_fwd, alpha=0.05, Letters=letters)
+
+#Post Hoc Test Looking at Treatment Differences by Year
+posthoc_fwd_by_year <- glht(fwd_lme, lsm(pairwise ~ Treatment|year))
+summary(posthoc_fwd_by_year)
+```
+
+
+##Litter
+```{r}
+#Checking Assumptions of a Repeated Measures ANOVA
+by(lit$carbon, lit$year, shapiro.test)
+#Results show that all years meet assumption of normality
+
+#Check for outliers
+boxplot(carbon ~ year, data=lit, main="Litter Outliers by Year")
+#Results show no outliers
+
+#Check Homogeneity of Variance
+bartlett.test(carbon ~ year, lit)
+#Results indicate failure to reject null hypothesis that variance is the same for all groups
+
+
+#Repeated Measures ANOVA on Lit Carbon by Treatment across Years
+lit_lme <- lme(carbon ~ Treatment * year, random= ~ year|Plot, data=lit, method="ML", control=list(opt="optim"))
+#summary(lit_lme)
+anova(lit_lme)
+posthoc_lit <- glht(lit_lme, linfct=mcp(Treatment = "Tukey"))
+summary(posthoc_lit)
+cld(posthoc_lit, alpha=0.05, Letters=letters)
+
+#Post Hoc Test Looking at Treatment Differences by Year
+posthoc_lit_by_year <- glht(lit_lme, lsm(pairwise ~ Treatment|year))
+summary(posthoc_lit_by_year)
+```
+
+
+##Total Carbon
+```{r}
+tot <- aggregate(carbon ~ Plot + Treatment + year, carb, sum)
+
+#Checking Assumptions of a Repeated Measures ANOVA
+by(tot$carbon, tot$year, shapiro.test)
+#Results show that all years meet assumption of normality
+
+#Check for outliers
+boxplot(carbon ~ year, data=tot, main="Total Carbon Outliers by Year")
+#Results show no outliers
+
+#Check Homogeneity of Variance
+bartlett.test(carbon ~ year, tot)
+#Results indicate failure to reject null hypothesis that variance is the same for all groups
+
+#Repeated Measures ANOVA on Lit Carbon by Treatment across Years
+tot_lme <- lme(carbon ~ Treatment * year, random= ~ year|Plot, data=tot, method="ML", control=list(opt="optim"))
+#summary(tot_lme)
+anova(tot_lme)
+posthoc_tot <- glht(tot_lme, linfct=mcp(Treatment = "Tukey"))
+summary(posthoc_tot)
+cld(posthoc_tot, alpha=0.05, Letters=letters)
+
+#Post Hoc Test Looking at Treatment Differences by Year
+posthoc_tot_by_year <- glht(tot_lme, lsm(pairwise ~ Treatment|year))
+summary(posthoc_tot_by_year)
+```
+
+#Analysis of Variance of Changes in Carbon Stocks
+```{r}
+diff <- read.csv("carbondiff.csv")
+
+#Drought Period
+drought <- diff[(diff$period == "drought"),]
+
+#Checking Normality Assumption for each fuel type (CWD is not normally distributed)
+by(drought$diff, drought$fuel_type, shapiro.test)
+
+
+#Live
+live <- drought[(drought$fuel_type == "Live"),]
+
+bartlett.test(diff ~ Treatment, live) # Checking Homogeneity of Variance (checks out)
+
+live_aov <- aov(diff ~ Treatment, data=live)
+summary(live_aov)
+
+TukeyHSD(live_aov)
+
+#Dead
+dead <- drought[(drought$fuel_type == "Dead"),]
+
+bartlett.test(diff ~ Treatment, dead) # Checking Homogeneity of Variance (checks out)
+
+dead_aov <- aov(diff ~ Treatment, data=dead)
+summary(dead_aov)
+
+TukeyHSD(dead_aov)
+
+
+#CWD
+cwd <- drought[(drought$fuel_type == "CWD"),]
+
+cwd$transdiff <- sqrt(cwd$diff+100)
+
+shapiro.test(cwd$transdiff)
+
+bartlett.test(transdiff ~ Treatment, cwd) # Checking Homogeneity of Variance (checks out)
+
+cwd_aov <- aov(diff ~ Treatment, data=cwd)
+summary(cwd_aov)
+
+TukeyHSD(cwd_aov)
+
+
+#FWD
+fwd <- drought[(drought$fuel_type == "FWD"),]
+
+bartlett.test(diff ~ Treatment, fwd) # Checking Homogeneity of Variance (checks out)
+
+fwd_aov <- aov(diff ~ Treatment, data=fwd)
+summary(fwd_aov)
+
+TukeyHSD(fwd_aov)
+
+#Litter
+litter <- drought[(drought$fuel_type == "Litter"),]
+
+bartlett.test(diff ~ Treatment, litter) # Checking Homogeneity of Variance (checks out)
+
+litter_aov <- aov(diff ~ Treatment, data=litter)
+summary(litter_aov)
+
+TukeyHSD(litter_aov)
+
+
+#Reburn Period(looking at only burn plots)
+reburn <- diff[(diff$period == "reburn"),]
+
+reburn <- reburn[(reburn$Treatment == "bs"|reburn$Treatment == "bc"|reburn$Treatment == "bn"),]
+
+#Checking Normality Assumption for each fuel type (all fuel types are normally distributed)
+by(reburn$diff, reburn$fuel_type, shapiro.test)
+
+#Live
+live <- reburn[(reburn$fuel_type == "Live"),]
+
+bartlett.test(diff ~ Treatment, live) # Checking Homogeneity of Variance (checks out)
+
+live_aov <- aov(diff ~ Treatment, data=live)
+summary(live_aov)
+
+TukeyHSD(live_aov)
+
+#Dead
+dead <- reburn[(reburn$fuel_type == "Dead"),]
+
+bartlett.test(diff ~ Treatment, dead) # Checking Homogeneity of Variance (checks out)
+
+dead_aov <- aov(diff ~ Treatment, data=dead)
+summary(dead_aov)
+
+TukeyHSD(dead_aov)
+
+
+#CWD
+cwd <- reburn[(reburn$fuel_type == "CWD"),]
+
+bartlett.test(diff ~ Treatment, cwd) # Checking Homogeneity of Variance (checks out)
+
+cwd_aov <- aov(diff ~ Treatment, data=cwd)
+summary(cwd_aov)
+
+TukeyHSD(cwd_aov)
+
+
+#FWD
+fwd <- reburn[(reburn$fuel_type == "FWD"),]
+
+bartlett.test(diff ~ Treatment, fwd) # Checking Homogeneity of Variance (checks out)
+
+fwd_aov <- aov(diff ~ Treatment, data=fwd)
+summary(fwd_aov)
+
+TukeyHSD(fwd_aov)
+
+#Litter
+litter <- reburn[(reburn$fuel_type == "Litter"),]
+
+bartlett.test(diff ~ Treatment, litter) # Checking Homogeneity of Variance (checks out)
+
+litter_aov <- aov(diff ~ Treatment, data=litter)
+summary(litter_aov)
+
+TukeyHSD(litter_aov)
+
+
+#Reburn Period(looking at ALL PLOTS)
+diff <- read.csv("carbondiff.csv")
+reburn <- diff[(diff$period == "reburn"),]
+
+#Checking Normality Assumption for each fuel type (Dead and Live are not normally distributed)
+by(reburn$diff, reburn$fuel_type, shapiro.test)
+
+#Live
+live <- reburn[(reburn$fuel_type == "Live"),]
+
+live$transdiff <- sqrt(live$diff)+100
+
+shapiro.test(live$transdiff)
+
+bartlett.test(diff ~ Treatment, live) # Checking Homogeneity of Variance (checks out)
+
+live_aov <- aov(diff ~ Treatment, data=live)
+summary(live_aov)
+
+TukeyHSD(live_aov)
+
+#Dead
+dead <- reburn[(reburn$fuel_type == "Dead"),]
+
+dead$transdiff <- log10(sqrt(dead$diff+1000))
+
+shapiro.test(dead$transdiff)
+
+bartlett.test(transdiff ~ Treatment, dead) # Checking Homogeneity of Variance (checks out)
+
+dead_aov <- aov(diff ~ Treatment, data=dead)
+summary(dead_aov)
+
+TukeyHSD(dead_aov)
+
+
+#CWD
+cwd <- reburn[(reburn$fuel_type == "CWD"),]
+
+bartlett.test(diff ~ Treatment, cwd) # Checking Homogeneity of Variance (checks out)
+
+cwd_aov <- aov(diff ~ Treatment, data=cwd)
+summary(cwd_aov)
+
+TukeyHSD(cwd_aov)
+
+
+#FWD
+fwd <- reburn[(reburn$fuel_type == "FWD"),]
+
+bartlett.test(diff ~ Treatment, fwd) # Checking Homogeneity of Variance (checks out)
+
+fwd_aov <- aov(diff ~ Treatment, data=fwd)
+summary(fwd_aov)
+
+TukeyHSD(fwd_aov)
+
+#Litter
+litter <- reburn[(reburn$fuel_type == "Litter"),]
+
+bartlett.test(diff ~ Treatment, litter) # Checking Homogeneity of Variance (checks out)
+
+litter_aov <- aov(diff ~ Treatment, data=litter)
+summary(litter_aov)
+
+TukeyHSD(litter_aov)
+
+```
