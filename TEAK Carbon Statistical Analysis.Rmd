@@ -398,34 +398,7 @@ reburn <- diff[(diff$period == "reburn"),]
 #Checking Normality Assumption for each fuel type (Dead and Live are not normally distributed)
 by(reburn$diff, reburn$fuel_type, shapiro.test)
 
-#Live
-live <- reburn[(reburn$fuel_type == "Live"),]
-
-live$transdiff <- sqrt(live$diff)+100
-
-shapiro.test(live$transdiff)
-
-bartlett.test(diff ~ Treatment, live) # Checking Homogeneity of Variance (checks out)
-
-live_aov <- aov(diff ~ Treatment, data=live)
-summary(live_aov)
-
-TukeyHSD(live_aov)
-
-#Dead
-dead <- reburn[(reburn$fuel_type == "Dead"),]
-
-dead$transdiff <- log10(sqrt(dead$diff+1000))
-
-shapiro.test(dead$transdiff)
-
-bartlett.test(transdiff ~ Treatment, dead) # Checking Homogeneity of Variance (checks out)
-
-dead_aov <- aov(diff ~ Treatment, data=dead)
-summary(dead_aov)
-
-TukeyHSD(dead_aov)
-
+##Couldn't analyze live and dead due to negative and zero values
 
 #CWD
 cwd <- reburn[(reburn$fuel_type == "CWD"),]
@@ -459,3 +432,245 @@ summary(litter_aov)
 TukeyHSD(litter_aov)
 
 ```
+
+###Change in Total Carbon Stock ANOVA (Before and After Second Entry Burn)
+```{r}
+carb <- read.csv("plotaverages.csv")
+
+carb$year <- as.factor(carb$year)
+
+temp <- aggregate(carbon ~ Plot + year, carb, sum)
+
+temp <- temp[which(temp$year == "2017" | temp$year == "2018"),]
+
+temp$Treatment <- substring(temp$Plot, 1, 2)
+
+temp <- temp[which(temp$Treatment == "bc" | temp$Treatment == "bn" | temp$Treatment == "bs"),]
+
+#Check for Normality
+by(temp$carbon, temp$year, shapiro.test) #Meets the assumption of normality
+
+#Check for homogeneity of variance
+bartlett.test(carbon ~ Treatment, temp) #Meets the assumption
+
+#ANOVA looking at Pre and Post Reburn Carbon Stocks by Treatment
+reburn <-  aov(carbon ~ year * Treatment, temp)
+
+summary(reburn)
+
+TukeyHSD(reburn)
+```
+
+
+###ANOVA of Second Entry Burn Emissions
+```{r}
+emit <- read.csv("reburnemissions.csv")
+
+#Check Normality (meets assumption)
+shapiro.test(emit$emissions)
+
+#Check Homogeneity of Variance (meets assumption)
+bartlett.test(emissions ~ treatment, emit)
+
+#ANOVA looking at emission differences by treatment
+emitted <- aov(emissions ~ treatment, emit)
+summary(emitted)
+
+TukeyHSD(emitted)
+
+#Average Emissions by Treatment
+aggregate(emissions ~ treatment, emit, mean)
+```
+
+
+
+###Total Surface Fuel Differences by Year and Treatment 
+```{r}
+fuel <- read.csv("plotaverages.csv")
+
+fuel$year <- as.factor(fuel$year)
+
+fuel <- fuel[which(fuel$fuel_type != "Live" & fuel$fuel_type != "Dead"),]
+
+fuel <- fuel[which(fuel$year != '2004'),]
+
+temp <- aggregate(carbon ~ Plot + year, fuel, sum)
+
+temp$Treatment <- substring(temp$Plot, 1, 2)
+
+#Check for Normality
+by(temp$carbon, temp$year, shapiro.test)
+
+#Check for Homogenetiy of Variance
+bartlett.test(carbon ~ year, temp)
+
+
+#ANOVA of Total Surface Fuel Carbon by Year
+
+yearaov <- aov(carbon ~ year+Treatment, temp)
+summary(yearaov)
+TukeyHSD(yearaov)
+
+```
+
+###Total Surface Fuel Differences by Year and Treatment using Gridpoint Data
+```{r}
+fuel <- read.csv("gridpointsurfacefuel.csv")
+
+fuel$year <- as.factor(fuel$year)
+
+
+#Check for Normality
+by(temp$carbon, temp$year, shapiro.test)
+
+#Check for Homogenetiy of Variance
+bartlett.test(carbon ~ year, temp)
+
+
+#ANOVA of Total Surface Fuel Carbon by Year
+
+yearaov <- aov(carbon ~ year+Treatment, temp)
+summary(yearaov)
+TukeyHSD(yearaov)
+```
+
+###Live Carbon Stability using Large Tree Data from 2008, 2011 and 2017
+```{r}
+live <- read.csv("largetree_livecarbave.csv")
+
+live$carbon_mg_ha <- ((live$carbon_mg_ha *12)/4)
+
+live$year <- as.factor(live$year)
+
+#BC
+bc <- live[which(live$Treatment == 'bc'),]
+shapiro.test(bc$carbon_mg_ha)
+
+ggplot(bc, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+bc.lm <- lm(carbon_mg_ha ~ year, data=bc)
+bc_rsd <- sd(bc.lm$residuals)
+
+#BN
+bn <- live[which(live$Treatment == 'bn'),]
+shapiro.test(bn$carbon_mg_ha)
+
+ggplot(bn, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+bn.lm <- lm(carbon_mg_ha ~ year, data=bn)
+bn_rsd <- sd(bn.lm$residuals)
+
+
+#BS
+bs <- live[which(live$Treatment == 'bs'),]
+shapiro.test(bs$carbon_mg_ha)
+
+ggplot(bs, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+bs.lm <- lm(carbon_mg_ha ~ year, data=bs)
+bs_rsd <- sd(bs.lm$residuals)
+
+#UC
+uc <- live[which(live$Treatment == 'uc'),]
+shapiro.test(uc$carbon_mg_ha)
+
+ggplot(uc, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+uc.lm <- lm(carbon_mg_ha ~ year, data=uc)
+uc_rsd <- sd(uc.lm$residuals)
+
+#US
+us <- live[which(live$Treatment == 'us'),]
+shapiro.test(us$carbon_mg_ha)
+
+ggplot(us, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+us.lm <- lm(carbon_mg_ha ~ year, data=us)
+
+us_rsd <- sd(us.lm$residuals)
+
+#UN
+un <- live[which(live$Treatment == 'un'),]
+shapiro.test(un$carbon_mg_ha)
+
+ggplot(un, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+un.lm <- lm(carbon_mg_ha ~ year, data=un)
+un_rsd <- sd(un.lm$residuals)
+
+ave_all <- aggregate(carbon_mg_ha ~ Plot, live, mean)
+
+ave_all$carbon_mg_ha <- as.numeric(ave_all$carbon_mg_ha)
+
+ave_all$Treatment <- substring(ave_all$Plot, 1, 2)
+
+ave_all$rsd <- NA
+ave_all[which(ave_all$Treatment == "bc"), 'rsd'] <- bc_rsd
+ave_all[which(ave_all$Treatment == "bn"), 'rsd'] <- bn_rsd
+ave_all[which(ave_all$Treatment == "bs"), 'rsd'] <- bs_rsd
+ave_all[which(ave_all$Treatment == "uc"), 'rsd'] <- uc_rsd
+ave_all[which(ave_all$Treatment == "un"), 'rsd'] <- un_rsd
+ave_all[which(ave_all$Treatment == "us"), 'rsd'] <- us_rsd
+
+
+ave_all$Stability_Treatment <- ave_all$carbon_mg_ha/ave_all$rsd
+
+ave_all$order <- NA
+
+ave_all[which(ave_all$Treatment == "un"), 'order'] <- 1
+ave_all[which(ave_all$Treatment == "bn"), 'order'] <- 2
+ave_all[which(ave_all$Treatment == "uc"), 'order'] <- 3
+ave_all[which(ave_all$Treatment == "bc"), 'order'] <- 4
+ave_all[which(ave_all$Treatment == "us"), 'order'] <- 5
+ave_all[which(ave_all$Treatment == "bs"), 'order'] <- 6
+
+ave_all$order <- as.factor(ave_all$order)
+
+ave_all$Stability_Treatment <- as.numeric(ave_all$Stability_Treatment)
+addline_format <- function(x,...){
+    gsub('\\s','\n',x)
+}
+
+stab <- ggplot(ave_all, aes(x=order, y=Stability_Treatment)) + geom_point(aes(fill=order),size = 3, shape=24, colour="black") + scale_fill_brewer(palette="Dark2")+
+ scale_x_discrete(labels=addline_format(c("Control", "Burn Only","Understory Thin","Burn Understory Thin", "Overstory Thin", "Burn Overstory Thin")))+
+   ylab("Large Tree Carbon Stability") 
+
+stab <- stab + theme_bw()+
+    theme(axis.title.x=element_blank())+ theme(legend.position = "none")
+
+
+#Linear Regression of Pre Drought Carbon and Carbon Stability
+carb <- read.csv("carbonstability.csv")
+
+carb_stab <- lm(carbon_mg_ha_08 ~ Stability_Treatment, carb)
+
+summary(carb_stab)
+
+plot <- ggplot(carb, aes(x=carbon_mg_ha_08, y=Stability_Treatment)) + geom_point(size = 2.5, aes(shape=Treatment, col=Treatment))+
+  geom_smooth(method = "lm", color="black") +
+  xlab("2008 Large Tree Live Carbon (Mg/ha)")+
+  ylab("Live Tree Carbon Stability")
+
+plot
+
+
+#2008 Large Tree Live Carbon is not a good predictor of the Carbon Stability Value
+```
+
+###2008 Large Tree Live Carbon and Temporal Standard Deviation
+```{r}
+plot <- read.csv("tempsd_08.csv")
+
+summary(lm(sd ~ Carb_08, data=plot))
+
+
+##2008 Large Tree Live Carbon is a good predictor of Temporal Standard Deviation (but this is obvious....more carbon means the deviation is likley to be larger)
+
+```
+
