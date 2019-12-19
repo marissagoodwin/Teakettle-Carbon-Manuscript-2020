@@ -1,7 +1,7 @@
 ---
 title: "TEAK Carbon Statistical Analysis"
 author: "Marissa Goodwin"
-date: "December 11, 2019"
+date: "December 19, 2019"
 output: html_document
 ---
 
@@ -33,6 +33,9 @@ library(car)
 
 library(FSA)
 
+library(data.table)
+
+library(ggsci)
 ```
 
 
@@ -674,3 +677,68 @@ summary(lm(sd ~ Carb_08, data=plot))
 
 ```
 
+
+###Logistic Regression of Mortality and Growing Space
+```{r}
+ddd <- read.csv("ddd.csv")
+
+ddd$Size <- NA
+ddd[which(ddd$DBH_11 < 75 | ddd$DBH_11 > 25), "Size"] <- "Medium"
+ddd[which(ddd$DBH_11 > 75), "Size"] <- "Large"
+ddd[which(ddd$DBH_11 < 25), "Size"] <- "Small"
+
+ddd$Area <- as.numeric(ddd$Area)
+ddd$Treatment <- as.factor(ddd$Treatment)
+
+#Model with Voronoi Area as a Predictor
+mort.dens <- glm(DDD ~ Area, data=ddd, family=binomial)
+summary(mort.dens)
+modelChi <- mort.dens$null.deviance - mort.dens$deviance
+chidf <- mort.dens$df.null - mort.dens$df.residual
+chisq.prob <- 1-pchisq(modelChi, chidf)
+chisq.prob
+exp(confint(mort.dens))
+#Model with Area and Treatment as Predictors
+mort.dens.tr <- glm(DDD ~ Area+Treatment, data=ddd, family=binomial)
+summary(mort.dens.tr)
+
+#Comparing the two models
+anova(mort.dens, mort.dens.tr)
+model.chi <- mort.dens$deviance - mort.dens.tr$deviance
+chidf <- mort.dens$df.residual - mort.dens.tr$df.residual
+chisq.prob <- 1 - pchisq(model.chi, chidf)
+model.chi; chidf; chisq.prob
+
+
+#Testing Assumptions of the Regression
+#Multicollinearity
+vif(mort.dens.tr)
+
+#Linearity of the logit
+ddd$logArea <- log(ddd$Area)*ddd$Area
+
+testLin <- glm(DDD ~ Area + Treatment + logArea,  data=ddd, family=binomial())
+summary(testLin)
+
+
+#Plotting Size Class, Density and Treatment on the Same Plot
+ddd$SDD <- NA
+ddd[which(ddd$DDD == "1"), "SDD"] <- 0
+ddd[which(ddd$DDD == "0"), "SDD"] <- 1
+ddd$sizeclass <- as.factor(ddd$sizeclass)
+
+treatments <- c('bc' = "Burn/Understory Thin", 'bn' = "Burn Only", 'bs' = 'Burn/Overstory Thin', 'uc'= "Understory Thin", 'un'="Control", 'us'="Overstory Thin")
+
+p <-ggplot(ddd, aes(x=Area, y=SDD, colour=Size, group=Size)) + stat_smooth(method="glm", method.args=list(family="binomial"), se=FALSE)+ 
+  facet_wrap(~Treatment, labeller = as_labeller(treatments),scales="free_x")+
+  ylab("Probability of Surviving Drought") +
+  xlab("Growing Space (meters)")+
+  scale_color_uchicago(labels = c("DBH > 75 cm", "25 cm  < DBH < 75 cm", "DBH < 25 cm"))
+  
+  
+size_log <- p + theme_bw() + theme(legend.title=element_blank()) + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_blank())+
+  theme(legend.position="bottom", legend.direction="horizontal")
+
+size_log
+
+```
