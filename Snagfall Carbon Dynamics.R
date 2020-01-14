@@ -7,9 +7,9 @@ setwd("C:/Users/mjgoodwin/Desktop/TEAK Carbon Manuscript Code")
 #This dataframe includes all the trees that were Alive in 2011 and either dead standing or dead on the ground in 2017
 snag <- read.csv("snags.csv")
 
-temp <- aggregate(fell ~ Plot, snag, sum)
+temp <- aggregate(fell ~ Plot + Died, snag, sum)
 
-temp2 <- aggregate(ddd ~ Plot, snag, sum)
+temp2 <- aggregate(ddd ~ Plot + Died, snag, sum)
 
 temp$ddd <- temp2$ddd
 
@@ -19,25 +19,17 @@ temp #This dataframe has the number and proportion of trees that fell by Plot
 
 
 #Plotting the Probability of Snagfall by Treatment
-p <- ggplot(snag, aes(x=DBH_11, y=fell, colour=Treatment, group=Treatment)) + stat_smooth(method="glm", method.args=list(family="binomial"), se=FALSE)+ 
+p <- ggplot(snag, aes(x=DBH_11, y=fell, colour=Died, group=Died)) + stat_smooth(method="glm", method.args=list(family="binomial"), se=FALSE)+ 
   ylab("Probability of Snagfall") +
-  xlab("DBH")
+  xlab("DBH")+
+  facet_wrap(~Treatment)
 
 snag_fall <- p + theme_bw() + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_blank())
 
 
-#Subset the dataset to only include the dominant species
-snag_spec <- snag[which(snag$Species == "abco" | snag$Species == "abma" | snag$Species == "cade" | snag$Species == "pila" | snag$Species == "pije"),]
-
-
-#Plotting the Probability of Snagfall by Treatment
-p <- ggplot(snag_spec, aes(x=DBH_11, y=fell, colour=Species, group=Species)) + stat_smooth(method="glm", method.args=list(family="binomial"), se=FALSE)+
-  ylab("Probability of Snagfall") +
-  xlab("DBH")
-
-snag_fall_spec <- p + theme_bw() + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_blank())
-
-snag_fall_spec
+#Statistical Analysis of Probability of Snagfall
+snag.fall <- glm(fell ~ Treatment+Died+speciesgroup, data=snag, family=binomial)
+summary(snag.fall)
 
 #Here I calculate the proportion of Carbon that remained standing versus fell
 
@@ -184,8 +176,29 @@ snag$Carbon <- snag$totalbiomass/2
 snag$carbon_mg_ha <- snag$Carbon/4
 
 #Sum the Carbon for Each Treatment Unit for the Standing Trees and Fallen Trees
-snagcarb <- aggregate(carbon_mg_ha ~ Plot + fell + Treatment, snag, sum)
+snagcarb <- aggregate(carbon_mg_ha ~ Plot + fell + Died + Treatment, snag, sum)
 
 #Saved the dataframe and calculated an average in Excel
-write.table(snagcarb, "C:/Users/mjgoodwin/Desktop/TEAK Carbon Manuscript Code/snagcarbon.csv", sep=",", na="", row.names=FALSE)
+write.table(snagcarb, "C:/Users/mjgoodwin/Desktop/TEAK Carbon Manuscript Code/snagcarbon2.csv", sep=",", na="", row.names=FALSE)
 
+
+
+#Lookng at Snag Consumption during the second entry burn
+snag <- read.csv("burnsnags.csv")
+
+snag$treatment <- substring(snag$Plot, 1, 2)
+
+snag$consumed <- 0
+
+snag[which(snag$Species_2018 == ""), 'consumed'] <- 1
+
+snag <- snag[which(snag$Species_2017 == "abco" | snag$Species_2017 == "cade" | snag$Species_2017 == "pila" | snag$Species_2017 == "pije"),]
+
+snag$DC_2017 <- as.factor(snag$DC_2017)
+
+p <- ggplot(snag, aes(x=DBH_17, y=consumed, colour=DC_2017, group=DC_2017)) + stat_smooth(method="glm", method.args=list(family="binomial"), se=FALSE)+ 
+  ylab("Probability of Snag Consumption") +
+  xlab("DBH")+
+  facet_grid(~treatment)
+
+snag_fall <- p + theme_bw() + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_blank())

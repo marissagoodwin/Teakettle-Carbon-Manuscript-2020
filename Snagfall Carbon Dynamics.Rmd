@@ -1,0 +1,105 @@
+---
+title: "Snag Fall and Consumption Dynamics"
+author: "Marissa Goodwin"
+date: "January 8, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#Load Libraries
+library(ggplot2)
+library(car)
+
+#Set Working Directory
+setwd("C:/Users/mjgoodwin/Desktop/TEAK Carbon Manuscript Code")
+```
+
+##Snagfall during the Drought Period: Comparing the likelihood of snagfall for trees that died before the drought and trees that died during drought
+
+```{r}
+snag <- read.csv("snags.csv")
+
+p <- ggplot(snag, aes(x=DBH_11, y=fell, colour=Died, group=Died)) + stat_smooth(method="glm", method.args=list(family="binomial"), se=FALSE)+ 
+  ylab("Probability of Snagfall") +
+  xlab("DBH")+
+  facet_wrap(~Treatment)
+
+snag_fall <- p + theme_bw() + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_blank())
+
+p <- ggplot(snag, aes(x=DBH_11, y=fell, colour=Treatment, group=Treatment)) + stat_smooth(method="glm", method.args=list(family="binomial"), se=FALSE)+ 
+  ylab("Probability of Snagfall") +
+  xlab("DBH")+
+  facet_wrap(~Died)
+
+snag_fall_2 <- p + theme_bw() + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_blank())
+
+```
+
+
+###Visualizing Snagfall Trends 
+
+####Drought = Trees that died during the drought, Pre-Drought = Trees that died during the drought period
+```{r, echo=FALSE, fig.height=6, f,ig.width=7}
+plot(snag_fall)
+```
+
+
+```{r, echo=FALSE, fig.height=6, f,ig.width=7}
+plot(snag_fall_2)
+```
+
+
+##Statistical Analysis of Probability of Snagfall
+```{r}
+snag.fall.1 <- glm(fell ~ Treatment, data=snag, family=binomial)
+snag.fall.2 <- glm(fell ~ Treatment + Died, data=snag, family=binomial)
+
+anova(snag.fall.1, snag.fall.2)
+summary(snag.fall.2)
+
+#Test for Multicollinearity
+vif(snag.fall.2)
+```
+
+
+##Snag Consumption during Second Burn: Were snags that had beetle evidence more likely to be consumed?
+```{r}
+snag <- read.csv("burnsnags.csv")
+
+snag$treatment <- substring(snag$Plot, 1, 2)
+
+snag$consumed <- 0
+
+snag[which(snag$Species_2018 == ""), 'consumed'] <- 1
+
+snag <- snag[which(snag$Species_2017 == "abco" | snag$Species_2017 == "cade" | snag$Species_2017 == "pila" | snag$Species_2017 == "pije"),]
+
+p <- ggplot(snag, aes(x=DBH_17, y=consumed, colour=treatment, group=treatment)) + stat_smooth(method="glm", method.args=list(family="binomial"), se=FALSE)+ 
+  ylab("Probability of Snag Consumption") +
+  xlab("DBH")+
+  facet_grid(~Beetle.Presence)
+  
+
+snag_cons <- p + theme_bw() + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_blank())
+```
+
+###Visualzing Snag Consumption
+```{r, echo=FALSE, fig.height=6, f,ig.width=7}
+plot(snag_cons)
+```
+
+
+#Statistical Analysis of Snag Consumption during the Second Burn
+```{r}
+snag.consumption.1 <- glm(consumed ~ treatment, data=snag, family=binomial)
+snag.consumption.2 <- glm(consumed ~ treatment+Beetle.Presence, data=snag, family=binomial)
+
+anova(snag.consumption.1, snag.consumption.2)
+
+summary(snag.consumption.2)
+
+#Test for Multiocollinearity
+vif(snag.consumption.2)
+```
