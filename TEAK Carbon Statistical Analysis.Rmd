@@ -1,7 +1,7 @@
 ---
 title: "TEAK Carbon Statistical Analysis"
 author: "Marissa Goodwin"
-date: "December 19, 2019"
+date: "January 20, 2019"
 output: html_document
 ---
 
@@ -9,8 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-###Set Working Directory and Load Library
-```{r}
+```{r, include=FALSE}
+###Set Working Directory and Load Necessary Libraries
 setwd("C:/Users/mjgoodwin/Desktop/TEAK Carbon Manuscript Code")
 
 library("nlme")
@@ -39,7 +39,7 @@ library(ggsci)
 ```
 
 
-###Repeated Measures ANOVA for Carbon Stocks
+##Repeated Measures ANOVA for Carbon Stocks
 ```{r pressure, echo=FALSE}
 carb <- read.csv("plotaverages.csv")
 carb$year <- as.factor(carb$year)
@@ -51,7 +51,7 @@ fwd <- carb[which(carb$fuel_type == "FWD"),]
 lit <- carb[which(carb$fuel_type == "Litter"),]
 ```
 
-##Live Trees
+###Live Trees
 ```{r}
 #Checking Assumptions of a Repeated Measures ANOVA
 by(live$carbon, live$year, shapiro.test)
@@ -79,7 +79,7 @@ summary(posthoc_live_by_year)
 ```
 
 
-##Dead Trees
+###Dead Trees
 ```{r}
 #Checking Assumptions of a Repeated Measures ANOVA
 by(snag$carbon, snag$year, shapiro.test)
@@ -122,7 +122,7 @@ summary(posthoc_snag_by_year)
 ```
 
 
-##CWD
+###CWD
 ```{r}
 #Checking Assumptions of a Repeated Measures ANOVA
 by(cwd$carbon, cwd$year, shapiro.test)
@@ -164,7 +164,7 @@ posthoc_cwd_by_year <- glht(cwd_lme, lsm(pairwise ~ Treatment|year))
 summary(posthoc_cwd_by_year)
 ```
 
-##FWD
+###FWD
 ```{r}
 #Checking Assumptions of a Repeated Measures ANOVA
 by(fwd$carbon, fwd$year, shapiro.test)
@@ -207,7 +207,7 @@ summary(posthoc_fwd_by_year)
 ```
 
 
-##Litter
+###
 ```{r}
 #Checking Assumptions of a Repeated Measures ANOVA
 by(lit$carbon, lit$year, shapiro.test)
@@ -236,7 +236,7 @@ summary(posthoc_lit_by_year)
 ```
 
 
-##Total Carbon
+###Total Carbon
 ```{r}
 tot <- aggregate(carbon ~ Plot + Treatment + year, carb, sum)
 
@@ -265,7 +265,7 @@ posthoc_tot_by_year <- glht(tot_lme, lsm(pairwise ~ Treatment|year))
 summary(posthoc_tot_by_year)
 ```
 
-#Analysis of Variance of Changes in Carbon Stocks
+##ANOVA of Changes in Carbon Stocks for the Drought and Reburn
 ```{r}
 diff <- read.csv("carbondiff.csv")
 
@@ -393,50 +393,9 @@ summary(litter_aov)
 
 TukeyHSD(litter_aov)
 
-
-#Reburn Period(looking at ALL PLOTS)
-diff <- read.csv("carbondiff.csv")
-reburn <- diff[(diff$period == "reburn"),]
-
-#Checking Normality Assumption for each fuel type (Dead and Live are not normally distributed)
-by(reburn$diff, reburn$fuel_type, shapiro.test)
-
-##Couldn't analyze live and dead due to negative and zero values
-
-#CWD
-cwd <- reburn[(reburn$fuel_type == "CWD"),]
-
-bartlett.test(diff ~ Treatment, cwd) # Checking Homogeneity of Variance (checks out)
-
-cwd_aov <- aov(diff ~ Treatment, data=cwd)
-summary(cwd_aov)
-
-TukeyHSD(cwd_aov)
-
-
-#FWD
-fwd <- reburn[(reburn$fuel_type == "FWD"),]
-
-bartlett.test(diff ~ Treatment, fwd) # Checking Homogeneity of Variance (checks out)
-
-fwd_aov <- aov(diff ~ Treatment, data=fwd)
-summary(fwd_aov)
-
-TukeyHSD(fwd_aov)
-
-#Litter
-litter <- reburn[(reburn$fuel_type == "Litter"),]
-
-bartlett.test(diff ~ Treatment, litter) # Checking Homogeneity of Variance (checks out)
-
-litter_aov <- aov(diff ~ Treatment, data=litter)
-summary(litter_aov)
-
-TukeyHSD(litter_aov)
-
 ```
 
-###Change in Total Carbon Stock ANOVA (Before and After Second Entry Burn)
+##Change in Total Carbon Stock ANOVA (Before and After Second Entry Burn)
 ```{r}
 carb <- read.csv("plotaverages.csv")
 
@@ -465,7 +424,7 @@ TukeyHSD(reburn)
 ```
 
 
-###ANOVA of Second Entry Burn Emissions
+##ANOVA of Second Entry Burn Emissions
 ```{r}
 emit <- read.csv("reburnemissions.csv")
 
@@ -487,7 +446,9 @@ aggregate(emissions ~ treatment, emit, mean)
 
 
 
-###Total Surface Fuel Differences by Year and Treatment 
+##Total Surface Fuel Differences by Year and Treatment 
+
+###The results are the same whether you use plot level averages or gridpoint data
 ```{r}
 fuel <- read.csv("plotaverages.csv")
 
@@ -516,28 +477,7 @@ TukeyHSD(yearaov)
 
 ```
 
-###Total Surface Fuel Differences by Year and Treatment using Gridpoint Data
-```{r}
-fuel <- read.csv("gridpointsurfacefuel.csv")
-
-fuel$year <- as.factor(fuel$year)
-
-
-#Check for Normality
-by(temp$carbon, temp$year, shapiro.test)
-
-#Check for Homogenetiy of Variance
-bartlett.test(carbon ~ year, temp)
-
-
-#ANOVA of Total Surface Fuel Carbon by Year
-
-yearaov <- aov(carbon ~ year+Treatment, temp)
-summary(yearaov)
-TukeyHSD(yearaov)
-```
-
-###Live Carbon Stability using Large Tree Data from 2008, 2011 and 2017
+##Live Carbon Stability using Large Tree Data from 2008, 2011 and 2017
 ```{r}
 live <- read.csv("largetree_livecarbave.csv")
 
@@ -655,6 +595,11 @@ carb_stab <- lm(carbon_mg_ha_08 ~ Stability_Treatment, carb)
 
 summary(carb_stab)
 
+#2008 Large Tree Live Carbon is not a good predictor of the Carbon Stability Value
+```
+
+##2008 Large Tree Live Carbon and Temporal Standard Deviation
+```{r}
 plot <- ggplot(carb, aes(x=carbon_mg_ha_08, y=Stability_Treatment)) + geom_point(size = 2.5, aes(shape=Treatment, col=Treatment))+
   geom_smooth(method = "lm", color="black") +
   xlab("2008 Large Tree Live Carbon (Mg/ha)")+
@@ -662,12 +607,6 @@ plot <- ggplot(carb, aes(x=carbon_mg_ha_08, y=Stability_Treatment)) + geom_point
 
 plot
 
-
-#2008 Large Tree Live Carbon is not a good predictor of the Carbon Stability Value
-```
-
-###2008 Large Tree Live Carbon and Temporal Standard Deviation
-```{r}
 plot <- read.csv("tempsd_08.csv")
 
 summary(lm(sd ~ Carb_08, data=plot))
@@ -678,7 +617,9 @@ summary(lm(sd ~ Carb_08, data=plot))
 ```
 
 
-###Logistic Regression of Mortality and Growing Space
+##Logistic Regression: Probability of Drought Survival
+
+###Used Growing Space, Treatment and Tree Size Class to predict whether a tree survived or died during the drought
 ```{r}
 ddd <- read.csv("ddd.csv")
 
@@ -721,6 +662,29 @@ testLin <- glm(DDD ~ Area + Treatment + logArea,  data=ddd, family=binomial())
 summary(testLin)
 
 
+#Now let's look at the logistic regression model that includes tree size
+mort.dens.tr.sz <-  glm(DDD ~ Area+Treatment+Size, data=ddd, family=binomial)
+summary(mort.dens.tr.sz) ##Using Size (Large vs Small) is significant, but using DBH is not a significant predictor
+
+#Comparing the two models
+anova(mort.dens.tr, mort.dens.tr.sz)
+model.chi <- mort.dens.tr$deviance - mort.dens.tr.sz$deviance
+chidf <- mort.dens.tr$df.residual - mort.dens.tr.sz$df.residual
+chisq.prob <- 1 - pchisq(model.chi, chidf)
+model.chi; chidf; chisq.prob
+
+
+#Testing Assumptions of the Regression
+#Multicollinearity
+vif(mort.dens.tr.sz)
+
+#Linearity of the logit
+ddd$logArea <- log(ddd$Area)*ddd$Area
+
+testLin <- glm(DDD ~ Area + Treatment + logArea,  data=ddd, family=binomial())
+summary(testLin)
+
+
 #Plotting Size Class, Density and Treatment on the Same Plot
 ddd$SDD <- NA
 ddd[which(ddd$DDD == "1"), "SDD"] <- 0
@@ -740,5 +704,71 @@ size_log <- p + theme_bw() + theme(legend.title=element_blank()) + theme(panel.g
   theme(legend.position="bottom", legend.direction="horizontal")
 
 size_log
+
+```
+
+
+##Logistic Regression: Probability of Snag Fall during the drought
+
+###This analysis only looks at trees that were alive before the drought (2011) and died during the drought period
+```{r}
+snag <- read.csv("snags.csv")
+snag$sizeclass <- as.factor(snag$sizeclass)
+
+#Isolate tree that died during the drought (the large dataframe also includes tree that died before the drought)
+snag <- snag[which(snag$Died == "Drought"),]
+
+
+#Plotting the Probability of Snagfall by Treatment
+p <- ggplot(snag, aes(x=DBH_11, y=fell, colour=Treatment, group=Treatment)) + stat_smooth(method="glm", method.args=list(family="binomial"), se=FALSE)+ 
+  ylab("Probability of Snagfall") +
+  xlab("DBH")
+
+snag_fall <- p + theme_bw() + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_blank())
+
+snag_fall
+
+#Statistical Analysis of Probability of Snagfall
+snag.fall <- glm(fell ~ Treatment, data=snag, family=binomial)
+summary(snag.fall)
+
+snag.fall.sz <- glm(fell ~ Treatment + sizeclass, data=snag, family=binomial)
+summary(snag.fall.sz)
+```
+
+
+##Logistic Regression: Snag Consumption during the Two Burns
+
+###Using Decay Class, Treatment and Burn as predictors for the probability of snag consumption
+```{r}
+snag <- read.csv("burnsnags.csv")
+
+snag$treatment <- substring(snag$Plot, 1, 2)
+
+snag$Decay.Class <- as.factor(snag$Decay.Class)
+
+treatments <- c('bc' = "Burn/Understory Thin", 'bn' = "Burn Only", 'bs' = 'Burn/Overstory Thin', 'First Burn' = 'First Burn', 'Second Burn' = 'Second Burn')
+
+p <- ggplot(snag, aes(x=DBH_Pre, y=consumed, colour=Decay.Class, group=Decay.Class)) + stat_smooth(method="glm", method.args=list(family="binomial"), se=FALSE)+ 
+  ylab("Probability of Snag Consumption") +
+  xlab("DBH")+
+  facet_grid(Burn~treatment, labeller=as_labeller(treatments))+
+  scale_color_uchicago(name = "Decay Class")
+
+snag_cons <- p + theme_bw(base_size=13) + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_blank())+
+  theme(legend.position="bottom", legend.direction="horizontal", legend.spacing.x= unit(0.5, 'cm'))+
+  theme(legend.box.background = element_rect(color="black", size=1))
+
+snag_cons
+
+#Statistical Analysis of Probability of Snagfall
+snag.cons <- glm(consumed ~ Decay.Class, data=snag, family=binomial)
+summary(snag.cons)
+
+snag.cons.tr <- glm(consumed ~ Decay.Class + treatment, data=snag, family=binomial)
+summary(snag.cons.tr)
+
+snag.cons.tr.brn <- glm(consumed ~ Decay.Class + treatment + Burn, data=snag, family=binomial)
+summary(snag.cons.tr.brn)
 
 ```
