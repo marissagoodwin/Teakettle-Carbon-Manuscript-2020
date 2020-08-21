@@ -1,0 +1,77 @@
+Teakettle Carbon Manuscript Dataframes and Code
+Created August 3, 2020 by Marissa J. Goodwin
+
+Description of Dataframes (listed in Alphabetical order):
+
+burnsnags.csv - Dataframe of all snags that were standing prior to the first burn and second burn. The "consumed"
+column indicates whether they were consumed in the fire (1) or remained standing (0). This dataframe is used
+in the logistic regression of snag consumption.
+
+burnsnag_secondburn.csv - This dataframe is a subset of "burnsnags.csv", containing only snags that were standing
+prior to the second burn. This dataframe is used to create Supplemental Figure 4 which shows the probability of snag
+consumption during the second entry  burn.
+
+carbonstability.csv - This dataframe is the output after calculating the carbon stability metric for each treatment unit.
+Column "carbon_mg_ha_08" is the live tree carbon found in each treatment unit in 2008, "rsd" is the standard deviation of
+the residuals, "Stability_Treatment" is the calculated carbon stability metric, and "Basal.Area" is the post-treatment
+(2004) basal area for each treatment unit. This dataframe is used in the linear regression looking at basal area
+and carbon stability.
+
+carbonstabilityfig.csv - This dataframe is the same as carbonstability.csv, but contains an order column for creating Figure
+2. 
+
+ddd.csv - Dataframe of all trees that were alive in 2011 (Status_2011 = 1). Column "DDD" indicates whether the tree
+died during the drought (DDD = 1) or survived (DDD = 0). Column "Growing.Space" indicates the growing space in meters squared
+for each tree (calculated using Voronoi polygons). "DBH_11" indicates the 2011 DBH of the tree.
+This dataframe is used in the logistic regression of the probability of tree survival during drought based on 
+tree size and growing space. 
+
+ddd_200.csv - This dataframe is a subset of "ddd.csv" and only includes trees with a growing space of 200 square meters
+or less. This is used to create Figure 1, which shows the probability of tree survival during drought using
+size, treatment and growing space as predictor variables. Less than 3% of trees were removed to create this dataframe. 
+
+Emissions_Comparison.csv - Dataframe of average total emissions for each treatment for the first and second burn.
+Includes column "Std" which is the standard error of the emissions for each treatment. This dataframe is used
+to create Figure 4B. 
+
+fuels.csv - This dataframe includes the carbon (column = "carbon") and standard error (column = "std") for each carbon
+pool (column = "fuel_type") for each treatment and year. This dataframe is used to create Figure 4A.
+
+largetree_livecarbonave.csv - This dataframe includes the live tree carbon (Mg/ha, column = "carbon_mg_ha") for each 
+treatment unit for 2008, 2011, and 2017. This dataframe is used to calculate the carbon stability metric for each treatment. 
+
+plotaverages.csv - This dataframe includes the carbon (column = "carbon") for each carbon pool (column = "fuel_type"),
+treatment unit and year. This dataframe is used in the repeated measures anova of each carbon pool, the anova of changes
+in surface fuels, and the t-test analysis of the changes in each pool during the second burn.
+
+reburnemissions.csv - This dataframe includes the emissions from the second entry burn for each burn treatment unit.
+Column "carbon_pre" is the total carbon in 2017 (prior to the burn) and column "carbon_post" is the total carbon in
+2019 (two years after the burn. 2019 was used to account for burn related mortality). Column "emissions" is the difference
+between the two and indicates the carbon emitted during the second burn for each treatment unit. This dataframe is
+used in the ANOVA of second entry burn emissions. 
+
+snags.csv - This dataframe includes trees that died during the drought (DDD = 1). Column "fell" indicates whether
+the snag fell during the drought period (fell = 1) or remained standing (fell = 0). This dataframe is used in the
+logistic regression of snagfall and is used to create Supplemental Figure 3. 
+
+treatmentaverages.csv - This dataframe includes the proportion of total carbon (column = "proportion") in each
+carbon pool (column = "fuel_type") for each treatment and year. This dataframe is used to create Figure 3. 
+
+treatmentaverages_absolute.csv - This dataframe includes the carbon (column = "carbon") found in each carbon pool 
+(column = "fuel_type") for each treatment and year. Negative values are so the fuel types "CWD" and "Dead" appear
+under the x-axis for Supplemental Figure 2. 
+
+Treatment Codes listed in Treatment columns:
+BC - Burn/Understory Thin
+BN - Burn/No Thin
+BS - Burn/Overstory Thin
+UC - Understory Thin Only
+UN - Control
+US - Overstory Thin Only
+
+Code:
+
+Teakettle Carbon Manuscript Analysis - Code for all analyses outlined in the manuscript
+
+Teakettle Carbon Manuscript Figures - Code to create all figures presented in the manuscript and supplemental materials.
+Exceptions include Supplemental Figure 1 and Supplemental Table 1 which were not created in R. 

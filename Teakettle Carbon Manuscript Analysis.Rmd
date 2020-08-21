@@ -1,0 +1,697 @@
+---
+title: "Teakettle Carbon Analysis"
+author: "Marissa J. Goodwin"
+date: "8/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+
+```{r, include=FALSE}
+###Set Working Directory and Load Necessary Libraries
+setwd("C:/Users/maris/OneDrive/Desktop/TEAK Carbon Manuscript Code/Final")
+
+#Load required Packages
+library("nlme")
+
+library("multcomp")
+
+library("ggplot2")
+
+library("car")
+
+library("data.table")
+
+library("ggsci")
+
+library("lsmeans")
+```
+
+##Logistic Regression: Probability of Drought Survival
+
+###Used Growing Space, Treatment and Tree Size Class to predict whether a tree survived or died during the drought
+```{r}
+ddd <- read.csv("ddd.csv")
+
+ddd$Size <- NA
+ddd[which(ddd$DBH_11 < 75 | ddd$DBH_11 > 25), "Size"] <- "Medium"
+ddd[which(ddd$DBH_11 > 75), "Size"] <- "Large"
+ddd[which(ddd$DBH_11 < 25), "Size"] <- "Small"
+
+ddd$Area <- as.numeric(ddd$Growing.Space)
+ddd$Treatment <- as.factor(ddd$Treatment)
+
+#Model with Voronoi Area (Growing.Space) as a Predictor
+mort.dens <- glm(DDD ~ Growing.Space, data=ddd, family=binomial)
+summary(mort.dens)
+modelChi <- mort.dens$null.deviance - mort.dens$deviance
+chidf <- mort.dens$df.null - mort.dens$df.residual
+chisq.prob <- 1-pchisq(modelChi, chidf)
+chisq.prob
+exp(confint(mort.dens))
+#Model with Area and Treatment as Predictors
+mort.dens.tr <- glm(DDD ~ Growing.Space +Treatment, data=ddd, family=binomial)
+summary(mort.dens.tr)
+
+#Comparing the two models
+anova(mort.dens, mort.dens.tr)
+model.chi <- mort.dens$deviance - mort.dens.tr$deviance
+chidf <- mort.dens$df.residual - mort.dens.tr$df.residual
+chisq.prob <- 1 - pchisq(model.chi, chidf)
+model.chi; chidf; chisq.prob
+
+
+#Testing Assumptions of the Regression
+#Multicollinearity
+vif(mort.dens.tr)
+
+#Linearity of the logit
+ddd$logArea <- log(ddd$Growing.Space)*ddd$Growing.Space
+
+testLin <- glm(DDD ~ Growing.Space + Treatment + logArea,  data=ddd, family=binomial())
+summary(testLin)
+
+
+#Now let's look at the logistic regression model that includes tree size
+mort.dens.tr.sz <-  glm(DDD ~ Growing.Space + Treatment + Size, data=ddd, family=binomial)
+summary(mort.dens.tr.sz) ##Using Size (Large vs Small) is significant, but using DBH is not a significant predictor
+
+#Comparing the two models
+anova(mort.dens.tr, mort.dens.tr.sz)
+model.chi <- mort.dens.tr$deviance - mort.dens.tr.sz$deviance
+chidf <- mort.dens.tr$df.residual - mort.dens.tr.sz$df.residual
+chisq.prob <- 1 - pchisq(model.chi, chidf)
+model.chi; chidf; chisq.prob
+
+
+#Testing Assumptions of the Regression
+#Multicollinearity
+vif(mort.dens.tr.sz)
+
+#Linearity of the logit
+ddd$logArea <- log(ddd$Growing.Space)*ddd$Growing.Space
+
+testLin <- glm(DDD ~ Growing.Space + Treatment + logArea,  data=ddd, family=binomial())
+summary(testLin)
+
+
+#Plotting Size Class, Density and Treatment on the Same Plot
+#Turn Column "DDD" (Died during Drought) to "SDD" (Survived During Drought)
+ddd$SDD <- NA
+ddd[which(ddd$DDD == "1"), "SDD"] <- 0
+ddd[which(ddd$DDD == "0"), "SDD"] <- 1
+ddd$Size <- as.factor(ddd$Size)
+
+treatments <- c('bc' = "Burn/Understory Thin", 'bn' = "Burn Only", 'bs' = 'Burn/Overstory Thin', 'uc'= "Understory Thin", 'un'="Control", 'us'="Overstory Thin")
+
+p <-ggplot(ddd, aes(x=Area, y=SDD, colour=Size, group=Size)) + stat_smooth(method="glm", method.args=list(family="binomial"), se=FALSE)+ 
+  facet_wrap(~Treatment, labeller = as_labeller(treatments),scales="free_x")+
+  ylab("Probability of Surviving Drought") +
+  xlab("Growing Space (meters)")+
+  scale_color_uchicago(labels = c("DBH > 75 cm", "25 cm  < DBH < 75 cm", "DBH < 25 cm"))
+  
+  
+size_log <- p + theme_bw() + theme(legend.title=element_blank()) + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_blank())+
+  theme(legend.position="bottom", legend.direction="horizontal")
+
+size_log
+```
+
+
+##Live Tree Carbon Stability using Large Tree Data from 2008, 2011 and 2017
+```{r}
+live <- read.csv("largetree_livecarbave.csv")
+
+live$year <- as.factor(live$year)
+
+#Next, I assessed the normality and distribution of the live tree C values for each
+#treatment. Then I calculated the residuals for each treament using linear regression
+
+#BC
+bc <- live[which(live$Treatment == 'bc'),]
+shapiro.test(bc$carbon_mg_ha)
+
+ggplot(bc, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+bc.lm <- lm(carbon_mg_ha ~ year, data=bc)
+bc_rsd <- sd(bc.lm$residuals)
+
+#BN
+bn <- live[which(live$Treatment == 'bn'),]
+shapiro.test(bn$carbon_mg_ha)
+
+ggplot(bn, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+bn.lm <- lm(carbon_mg_ha ~ year, data=bn)
+bn_rsd <- sd(bn.lm$residuals)
+
+#BS
+bs <- live[which(live$Treatment == 'bs'),]
+shapiro.test(bs$carbon_mg_ha)
+
+ggplot(bs, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+bs.lm <- lm(carbon_mg_ha ~ year, data=bs)
+bs_rsd <- sd(bs.lm$residuals)
+
+#UC
+uc <- live[which(live$Treatment == 'uc'),]
+shapiro.test(uc$carbon_mg_ha)
+
+ggplot(uc, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+uc.lm <- lm(carbon_mg_ha ~ year, data=uc)
+uc_rsd <- sd(uc.lm$residuals)
+
+#US
+us <- live[which(live$Treatment == 'us'),]
+shapiro.test(us$carbon_mg_ha)
+
+ggplot(us, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+us.lm <- lm(carbon_mg_ha ~ year, data=us)
+
+us_rsd <- sd(us.lm$residuals)
+
+#UN
+un <- live[which(live$Treatment == 'un'),]
+shapiro.test(un$carbon_mg_ha)
+
+ggplot(un, aes(x=year, y=carbon_mg_ha)) + geom_point()+
+  geom_smooth(method="lm") 
+
+un.lm <- lm(carbon_mg_ha ~ year, data=un)
+un_rsd <- sd(un.lm$residuals)
+
+#Calculate the live tree C average for each plot
+ave_all <- aggregate(carbon_mg_ha ~ Plot, live, mean)
+
+ave_all$carbon_mg_ha <- as.numeric(ave_all$carbon_mg_ha)
+
+ave_all$Treatment <- substring(ave_all$Plot, 1, 2)
+
+#Add the calculated residual for each treatment to the dataframe
+ave_all$rsd <- NA
+ave_all[which(ave_all$Treatment == "bc"), 'rsd'] <- bc_rsd
+ave_all[which(ave_all$Treatment == "bn"), 'rsd'] <- bn_rsd
+ave_all[which(ave_all$Treatment == "bs"), 'rsd'] <- bs_rsd
+ave_all[which(ave_all$Treatment == "uc"), 'rsd'] <- uc_rsd
+ave_all[which(ave_all$Treatment == "un"), 'rsd'] <- un_rsd
+ave_all[which(ave_all$Treatment == "us"), 'rsd'] <- us_rsd
+
+#Calculate Carbon Stability by dividing carbon average by the residual
+ave_all$Stability_Treatment <- ave_all$carbon_mg_ha/ave_all$rsd
+
+#Order Treatments for presentation in figure
+ave_all$order <- NA
+ave_all[which(ave_all$Treatment == "un"), 'order'] <- 1
+ave_all[which(ave_all$Treatment == "bn"), 'order'] <- 2
+ave_all[which(ave_all$Treatment == "uc"), 'order'] <- 3
+ave_all[which(ave_all$Treatment == "bc"), 'order'] <- 4
+ave_all[which(ave_all$Treatment == "us"), 'order'] <- 5
+ave_all[which(ave_all$Treatment == "bs"), 'order'] <- 6
+
+ave_all$order <- as.factor(ave_all$order)
+
+ave_all$Stability_Treatment <- as.numeric(ave_all$Stability_Treatment)
+addline_format <- function(x,...){
+    gsub('\\s','\n',x)
+}
+
+stab <- ggplot(ave_all, aes(x=order, y=Stability_Treatment)) + geom_point(aes(fill=order),size = 3, shape=24, colour="black") + scale_fill_brewer(palette="Dark2")+
+ scale_x_discrete(labels=addline_format(c("Control", "Burn Only","Understory Thin","Burn Understory Thin", "Overstory Thin", "Burn Overstory Thin")))+
+   ylab("Large Tree Carbon Stability") 
+
+stab <- stab + theme_bw()+
+    theme(axis.title.x=element_blank())+ theme(legend.position = "none")
+
+
+#Linear Regression of Post-Treatment Basal Area and Carbon Stability
+carb <- read.csv("carbonstability.csv")
+
+carb_stab <- lm(Basal.Area ~ Stability_Treatment, carb)
+
+summary(carb_stab)
+
+#Check assumptions of linear regression
+##Linearity of Data
+plot(carb_stab, 1)
+
+##Normality of Residuals
+plot(carb_stab, 2)
+
+##Homogeneity of Variance
+plot(carb_stab, 3)
+
+##Data meets assumptions of Linear Regression
+#Post-Treatment (2004) Basal Area is not a good predictor of the Carbon Stability Value
+```
+
+
+##Repeated Measures ANOVA for Carbon Stocks
+```{r pressure, echo=FALSE}
+carb <- read.csv("plotaverages.csv")
+carb$year <- as.factor(carb$year)
+carb$Treatment <- as.factor(carb$Treatment)
+
+#Subset each Carbon Pool into a separate dataframe
+live <- carb[which(carb$fuel_type == "Live"),]
+snag <- carb[which(carb$fuel_type == "Dead"),]
+cwd <- carb[which(carb$fuel_type == "CWD"),]
+fwd <- carb[which(carb$fuel_type == "FWD"),]
+lit <- carb[which(carb$fuel_type == "Litter"),]
+```
+
+###Live Trees
+```{r}
+#Checking Assumptions of a Repeated Measures ANOVA
+by(live$carbon, live$year, shapiro.test)
+#Results show that each year meets the normality assumption
+
+#Check for outliers
+boxplot(carbon ~ year, data=live, main="Live Carbon Outliers by Year")
+#Results show no outliers for each year
+
+#Check Homogeneity of Variance
+bartlett.test(carbon ~ year, live)
+#Results indicate failure to reject null hypothesis that variance is the same for all groups
+
+#Repeated Measures ANOVA on Live Carbon by Treatment across Years
+live_lme <- lme(carbon ~ Treatment * year, random= ~ year|Plot, data=live, method="ML", control=list(opt="optim"))
+#summary(live_lme)
+anova(live_lme)
+posthoc_live <- glht(live_lme, linfct=mcp(Treatment = "Tukey"))
+summary(posthoc_live)
+cld(posthoc_live, alpha=0.05, Letters=letters)
+
+#Post Hoc Test Looking at Treatment Differences by Year
+posthoc_live_by_year <- glht(live_lme, lsm(pairwise ~ Treatment|year))
+summary(posthoc_live_by_year)
+```
+
+
+###Dead Trees
+```{r}
+#Checking Assumptions of a Repeated Measures ANOVA
+by(snag$carbon, snag$year, shapiro.test)
+#Results show that each year meets the normality assumption
+
+#Check for outliers
+boxplot(carbon ~ year, data=snag, main="Snag Carbon Outliers by Year")
+#Results show outliers
+
+#Check Homogeneity of Variance
+bartlett.test(carbon ~ year, snag)
+#Results indicate to reject null hypothesis that variance is the same for all groups
+
+#Transform Data to meet Assumptions
+snag$transcarb <- log(snag$carbon)
+
+#Checking Assumptions of Transfromed Data
+by(snag$transcarb, snag$year, shapiro.test)
+#Results show that each year meets the normality assumption
+
+#Check for outliers
+boxplot(transcarb ~ year, data=snag, main="Snag Carbon Outliers by Year")
+#Results show no significant outliers
+
+#Check Homogeneity of Variance
+bartlett.test(transcarb ~ year, snag)
+#Results indicate failure to reject null hypothesis that variance is the same for all groups
+
+#Repeated Measures ANOVA on Snag Carbon by Treatment across Years
+snag_lme <- lme(transcarb ~ Treatment * year, random= ~ year|Plot, data=snag, method="ML", control=list(opt="optim"))
+#summary(snag_lme)
+anova(snag_lme)
+posthoc_snag <- glht(snag_lme, linfct=mcp(Treatment = "Tukey"))
+summary(posthoc_snag)
+cld(posthoc_snag, alpha=0.05, Letters=letters)
+
+#Post Hoc Test Looking at Treatment Differences by Year
+posthoc_snag_by_year <- glht(snag_lme, lsm(pairwise ~ Treatment|year))
+summary(posthoc_snag_by_year)
+```
+
+
+###CWD
+```{r}
+#Checking Assumptions of a Repeated Measures ANOVA
+by(cwd$carbon, cwd$year, shapiro.test)
+#Results show that not all years meet normality assumption
+
+#Check for outliers
+boxplot(carbon ~ year, data=cwd, main="CWD Carbon Outliers by Year")
+#Results show outliers
+
+#Check Homogeneity of Variance
+bartlett.test(carbon ~ year, cwd)
+#Results indicate rejection of null hypothesis that variance is the same for all groups
+
+#Transform Data to meet Assumptions
+cwd$transcarb <- log10(cwd$carbon)
+
+#Checking Assumptions of Transfromed Data
+by(cwd$transcarb, cwd$year, shapiro.test)
+#Results show that each year meets the normality assumption
+
+#Check for outliers
+boxplot(transcarb ~ year, data=cwd, main="CWD Carbon Outliers by Year")
+#Results show no significant outliers
+
+#Check Homogeneity of Variance
+bartlett.test(transcarb ~ year, cwd)
+#Results indicate failure to reject null hypothesis that variance is the same for all groups
+
+#Repeated Measures ANOVA on CWD Carbon by Treatment across Years
+cwd_lme <- lme(transcarb ~ Treatment * year, random= ~ year|Plot, data=cwd, method="ML", control=list(opt="optim"))
+#summary(cwd_lme)
+anova(cwd_lme)
+posthoc_cwd <- glht(cwd_lme, linfct=mcp(Treatment = "Tukey"))
+summary(posthoc_cwd)
+cld(posthoc_cwd, alpha=0.05, Letters=letters)
+
+#Post Hoc Test Looking at Treatment Differences by Year
+posthoc_cwd_by_year <- glht(cwd_lme, lsm(pairwise ~ Treatment|year))
+summary(posthoc_cwd_by_year)
+```
+
+###FWD
+```{r}
+#Checking Assumptions of a Repeated Measures ANOVA
+by(fwd$carbon, fwd$year, shapiro.test)
+#Normality Assumption Met
+
+#Check for outliers
+boxplot(carbon ~ year, data=fwd, main="FWD Carbon Outliers by Year")
+#No Outliers
+
+#Check Homogeneity of Variance
+bartlett.test(carbon ~ year, fwd)
+#Results indicate rejection of null hypothesis that variance is the same for all groups
+
+#Transform Data to meet Assumptions
+fwd$transcarb <- log10(fwd$carbon)
+
+#Checking Assumptions of Transfromed Data
+by(fwd$transcarb, fwd$year, shapiro.test)
+#Results show that each year meets the normality assumption
+
+#Check for outliers
+boxplot(transcarb ~ year, data=fwd, main="FWD Carbon Outliers by Year")
+#Results show no significant outliers
+
+#Check Homogeneity of Variance
+bartlett.test(transcarb ~ year, fwd)
+#Results indicate failure to reject null hypothesis that variance is the same in all groups
+
+#Repeated Measures ANOVA on Fwd Carbon by Treatment across Years
+fwd_lme <- lme(transcarb ~ Treatment * year, random= ~ year|Plot, data=fwd, method="ML", control=list(opt="optim"))
+#summary(fwd_lme)
+anova(fwd_lme)
+posthoc_fwd <- glht(fwd_lme, linfct=mcp(Treatment = "Tukey"))
+summary(posthoc_fwd)
+cld(posthoc_fwd, alpha=0.05, Letters=letters)
+
+#Post Hoc Test Looking at Treatment Differences by Year
+posthoc_fwd_by_year <- glht(fwd_lme, lsm(pairwise ~ Treatment|year))
+summary(posthoc_fwd_by_year)
+```
+
+
+###Litter
+```{r}
+#Checking Assumptions of a Repeated Measures ANOVA
+by(lit$carbon, lit$year, shapiro.test)
+#Results show that all years meet assumption of normality
+
+#Check for outliers
+boxplot(carbon ~ year, data=lit, main="Litter Outliers by Year")
+#Results show no outliers
+
+#Check Homogeneity of Variance
+bartlett.test(carbon ~ year, lit)
+#Results indicate failure to reject null hypothesis that variance is the same for all groups
+
+
+#Repeated Measures ANOVA on Lit Carbon by Treatment across Years
+lit_lme <- lme(carbon ~ Treatment * year, random= ~ year|Plot, data=lit, method="ML", control=list(opt="optim"))
+#summary(lit_lme)
+anova(lit_lme)
+posthoc_lit <- glht(lit_lme, linfct=mcp(Treatment = "Tukey"))
+summary(posthoc_lit)
+cld(posthoc_lit, alpha=0.05, Letters=letters)
+
+#Post Hoc Test Looking at Treatment Differences by Year
+posthoc_lit_by_year <- glht(lit_lme, lsm(pairwise ~ Treatment|year))
+summary(posthoc_lit_by_year)
+```
+
+
+###Total Carbon
+```{r}
+tot <- aggregate(carbon ~ Plot + Treatment + year, carb, sum)
+
+#Checking Assumptions of a Repeated Measures ANOVA
+by(tot$carbon, tot$year, shapiro.test)
+#Results show that all years meet assumption of normality
+
+#Check for outliers
+boxplot(carbon ~ year, data=tot, main="Total Carbon Outliers by Year")
+#Results show no outliers
+
+#Check Homogeneity of Variance
+bartlett.test(carbon ~ year, tot)
+#Results indicate failure to reject null hypothesis that variance is the same for all groups
+
+#Repeated Measures ANOVA on Lit Carbon by Treatment across Years
+tot_lme <- lme(carbon ~ Treatment * year, random= ~ year|Plot, data=tot, method="ML", control=list(opt="optim"))
+#summary(tot_lme)
+anova(tot_lme)
+posthoc_tot <- glht(tot_lme, linfct=mcp(Treatment = "Tukey"))
+summary(posthoc_tot)
+cld(posthoc_tot, alpha=0.05, Letters=letters)
+
+#Post Hoc Test Looking at Treatment Differences by Year
+posthoc_tot_by_year <- glht(tot_lme, lsm(pairwise ~ Treatment|year))
+summary(posthoc_tot_by_year)
+```
+
+##Logistic Regression: Probability of Snag Fall during the drought
+
+###This analysis only looks at trees that were alive before the drought (2011) and died during the drought period
+```{r}
+snag <- read.csv("snags.csv")
+snag$sizeclass <- as.factor(snag$sizeclass)
+
+#Isolate tree that died during the drought (the large dataframe also includes tree that died before the drought)
+snag <- snag[which(snag$Died == "Drought"),]
+
+
+#Plotting the Probability of Snagfall by Treatment
+p <- ggplot(snag, aes(x=DBH_11, y=fell, colour=Treatment, group=Treatment)) + stat_smooth(method="glm", method.args=list(family="binomial"), se=FALSE)+ 
+  ylab("Probability of Snagfall") +
+  xlab("DBH")
+
+snag_fall <- p + theme_bw() + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_blank())
+
+snag_fall
+
+#Statistical Analysis of Probability of Snagfall
+snag.fall <- glm(fell ~ Treatment, data=snag, family=binomial)
+summary(snag.fall)
+
+snag.fall.sz <- glm(fell ~ Treatment + sizeclass, data=snag, family=binomial)
+summary(snag.fall.sz)
+
+
+#Testing Assumptions of the Regression
+#Multicollinearity
+vif(snag.fall.sz)
+
+#Linearity of the logit (No continuous variables to log transform)
+testLin <- glm(fell ~ sizeclass + Treatment,  data=snag, family=binomial())
+summary(testLin)
+```
+
+##ANOVA of Second Entry Burn Emissions
+```{r}
+emit <- read.csv("reburnemissions.csv")
+
+#Check Normality (meets assumption)
+shapiro.test(emit$emissions)
+
+#Check Homogeneity of Variance (meets assumption)
+bartlett.test(emissions ~ treatment, emit)
+
+#ANOVA looking at emission differences by treatment
+emitted <- aov(emissions ~ treatment, emit)
+summary(emitted)
+
+TukeyHSD(emitted)
+
+#Average Emissions by Treatment
+aggregate(emissions ~ treatment, emit, mean)
+```
+
+##Logistic Regression: Snag Consumption during the Two Burns
+
+###Using Decay Class, Treatment and Burn as predictors for the probability of snag consumption
+```{r}
+snag <- read.csv("burnsnags.csv")
+
+snag$treatment <- substring(snag$Plot, 1, 2)
+
+snag$Decay.Class <- as.factor(snag$Decay.Class)
+
+treatments <- c('bc' = "Burn/Understory Thin", 'bn' = "Burn Only", 'bs' = 'Burn/Overstory Thin', 'First Burn' = 'First Burn', 'Second Burn' = 'Second Burn')
+
+#Start by Visually comparing the probability of consumption for the two burns
+p <- ggplot(snag, aes(x=DBH_Pre, y=consumed, colour=Decay.Class, group=Decay.Class)) + stat_smooth(method="glm", method.args=list(family="binomial"), se=FALSE)+ 
+  ylab("Probability of Snag Consumption") +
+  xlab("DBH")+
+  facet_grid(Burn~treatment, labeller=as_labeller(treatments))+
+  scale_color_uchicago(name = "Decay Class")
+
+snag_cons <- p + theme_bw(base_size=13) + theme(panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_blank())+
+  theme(legend.position="bottom", legend.direction="horizontal", legend.spacing.x= unit(0.5, 'cm'))+
+  theme(legend.box.background = element_rect(color="black", size=1))
+
+snag_cons
+
+#Statistical Analysis of Probability of Snagfall
+##Start with Diameter
+snag.cons.1 <- glm(consumed ~ DBH_Pre, data=snag, family=binomial)
+summary(snag.cons.1)
+
+##Add Decay Class
+snag.cons <- glm(consumed ~ DBH_Pre + Decay.Class, data=snag, family=binomial)
+summary(snag.cons)
+
+#Add Treatment to the model
+snag.cons.tr <- glm(consumed ~ DBH_Pre + Decay.Class + treatment, data=snag, family=binomial)
+summary(snag.cons.tr)
+
+#Add Burn to the model
+snag.cons.tr.brn <- glm(consumed ~ DBH_Pre + Decay.Class + treatment + Burn, data=snag, family=binomial)
+summary(snag.cons.tr.brn)
+
+#Test for Multicollinearity
+vif(snag.cons.tr.brn)
+
+#Test Linearity of the Logit
+snag$logDBH <- log(snag$DBH_Pre)*snag$DBH_Pre
+
+testLin <- glm(consumed ~ DBH_Pre + Decay.Class + treatment + Burn + logDBH,  data=snag, family=binomial())
+summary(testLin)
+```
+
+##T-Test assessing significant changes in C pools before and after the second entry burn
+```{r}
+carb <- read.csv("plotaverages.csv")
+
+##Live Trees
+live <- carb[which((carb$fuel_type == "Live" & carb$year == "2017") | (carb$fuel_type == "Live" & carb$year == "2019")),]
+
+live <- live[which(live$Treatment == "bc" | live$Treatment == "bn" | live$Treatment == "bs"),]
+
+#Check for Normality
+by(live$carbon, live$year, shapiro.test)
+
+#Check for Homogenetiy of Variance
+bartlett.test(carbon ~ year, live)
+
+t.test(carbon ~ year, live)
+
+
+##Dead Trees
+dead <- carb[which((carb$fuel_type == "Dead" & carb$year == "2017") | (carb$fuel_type == "Dead" & carb$year == "2019")),]
+
+dead <- dead[which(dead$Treatment == "bc" | dead$Treatment == "bn" | dead$Treatment == "bs"),]
+
+#Check for Normality
+by(dead$carbon, dead$year, shapiro.test)
+
+#Check for Homogenetiy of Variance
+bartlett.test(carbon ~ year, dead)
+
+t.test(carbon ~ year, dead)
+
+##CWD
+cwd <- carb[which((carb$fuel_type == "CWD" & carb$year == "2017") | (carb$fuel_type == "CWD" & carb$year == "2018")),]
+
+cwd <- cwd[which(cwd$Treatment == "bc" | cwd$Treatment == "bn" | cwd$Treatment == "bs"),]
+
+#Check for Normality
+by(cwd$carbon, cwd$year, shapiro.test)
+
+#Check for Homogenetiy of Variance
+bartlett.test(carbon ~ year, cwd)
+
+t.test(carbon ~ year, cwd)
+
+##FWD
+fwd <- carb[which((carb$fuel_type == "FWD" & carb$year == "2017") | (carb$fuel_type == "FWD" & carb$year == "2018")),]
+
+fwd <- fwd[which(fwd$Treatment == "bc" | fwd$Treatment == "bn" | fwd$Treatment == "bs"),]
+
+#Check for Normality
+by(fwd$carbon, fwd$year, shapiro.test)
+
+#Check for Homogenetiy of Variance
+bartlett.test(carbon ~ year, fwd)
+
+t.test(carbon ~ year, fwd)
+
+##Litter
+lit <- carb[which((carb$fuel_type == "Litter" & carb$year == "2017") | (carb$fuel_type == "Litter" & carb$year == "2018")),]
+
+lit <- lit[which(lit$Treatment == "bc" | lit$Treatment == "bn" | lit$Treatment == "bs"),]
+
+#Check for Normality
+by(lit$carbon, lit$year, shapiro.test)
+
+#Check for Homogenetiy of Variance
+bartlett.test(carbon ~ year, lit)
+
+t.test(carbon ~ year, lit)
+```
+
+##Total Surface Fuel Differences by Year and Treatment 
+###The results are the same whether you use plot level averages or gridpoint data
+```{r}
+fuel <- read.csv("plotaverages.csv")
+
+fuel$year <- as.factor(fuel$year)
+
+#Remove Live and Dead C pools
+fuel <- fuel[which(fuel$fuel_type != "Live" & fuel$fuel_type != "Dead"),]
+
+#Remove Year 2004 (only comparing 2011, 2017, 2018, and 2019 as shown in Figure 4)
+fuel <- fuel[which(fuel$year != '2004'),]
+
+#Add all Surface Fuel Carbon pools to create a dataframe with Total Surface Fuel Carbon
+temp <- aggregate(carbon ~ Plot + year, fuel, sum)
+
+temp$Treatment <- substring(temp$Plot, 1, 2)
+
+#Check for Normality
+by(temp$carbon, temp$year, shapiro.test)
+
+#Check for Homogenetiy of Variance
+bartlett.test(carbon ~ year, temp)
+
+
+#ANOVA of Total Surface Fuel Carbon by Year
+yearaov <- aov(carbon ~ year+Treatment, temp)
+summary(yearaov)
+TukeyHSD(yearaov)
+```
+
